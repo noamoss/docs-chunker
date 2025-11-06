@@ -5,7 +5,7 @@ description = "Convert DOCX/PDF documents to Markdown and perform intelligent ch
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-    {name = "Noam", email = ""}
+    {name = "Noam"}
 ]
 license = {text = "MIT"}
 keywords = ["docx", "pdf", "markdown", "chunking", "rag", "document-processing"]
