@@ -16,6 +16,23 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Check for ignored files in repository
+      run: |
+        echo "Checking for accidentally committed ignored files..."
+        if git ls-files --ignored --exclude-standard | grep -E '\.venv/|\.egg-info/|^output/|__pycache__/'; then
+          echo "❌ ERROR: Ignored files found in repository!"
+          echo "The following ignored files are tracked in git:"
+          git ls-files --ignored --exclude-standard | grep -E '\.venv/|\.egg-info/|^output/|__pycache__/' || true
+          echo ""
+          echo "Please remove these files from git tracking:"
+          echo "  git rm -r --cached .venv/"
+          echo "  git rm -r --cached '*.egg-info/'"
+          echo "  git rm -r --cached output/"
+          exit 1
+        else
+          echo "✅ No ignored files found in repository"
+        fi
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
@@ -52,5 +69,3 @@ jobs:
       with:
         file: ./coverage.xml
         fail_ci_if_error: false
-
-

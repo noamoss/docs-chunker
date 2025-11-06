@@ -19,33 +19,99 @@ def convert(
     min_tokens: int = typer.Option(200, help="Minimum tokens per chunk (heuristic)"),
     max_tokens: int = typer.Option(1200, help="Maximum tokens per chunk (heuristic)"),
 ) -> None:
+    """Convert DOCX files to Markdown and chunk them for RAG systems."""
+    # Validate token parameters
+    if min_tokens < 1:
+        print(f"[red]Error:[/red] min_tokens must be >= 1, got {min_tokens}")
+        raise typer.Exit(code=1)
+    if max_tokens < min_tokens:
+        print(
+            f"[red]Error:[/red] max_tokens ({max_tokens}) must be >= min_tokens "
+            f"({min_tokens})"
+        )
+        raise typer.Exit(code=1)
+
+    # Validate input path
     input_path = Path(input)
+    if not input_path.exists():
+        print(f"[red]Error:[/red] Path does not exist: {input_path}")
+        raise typer.Exit(code=1)
+
+    # Collect targets
     targets = []
     if input_path.is_dir():
         targets = list(input_path.glob("*.docx"))
-    else:
-        targets = [input_path]
-
-    for target in targets:
-        base_dir, chunks_dir = output_paths_for(target)
-        full_md_path = base_dir / f"{doc_name_from_path(target)}.md"
-        if full_md_path.exists() and not force:
-            print(f"[yellow]Skip existing:[/yellow] {full_md_path}")
-            continue
-        md_text = convert_docx_to_markdown(target)
-        write_text(full_md_path, md_text)
-        print(f"[green]Wrote:[/green] {full_md_path}")
-
-        # Heuristic chunking
-        chunks = chunk_markdown(md_text, min_tokens=min_tokens, max_tokens=max_tokens)
-        if dry_run:
+        if not targets:
+            print(f"[yellow]Warning:[/yellow] No .docx files found in {input_path}")
+            return
+    elif input_path.is_file():
+        if input_path.suffix.lower() != ".docx":
             print(
-                f"[cyan]Dry-run:[/cyan] would write {len(chunks)} chunks "
-                f"for {target.name}"
+                f"[red]Error:[/red] File must be a .docx file, got: {input_path.suffix}"
             )
-        else:
-            save_chunks(target, chunks)
-            print(f"[green]Chunks:[/green] wrote {len(chunks)} files")
+            raise typer.Exit(code=1)
+        targets = [input_path]
+    else:
+        print(f"[red]Error:[/red] Path is neither a file nor a directory: {input_path}")
+        raise typer.Exit(code=1)
+
+    # Process each target
+    for target in targets:
+        try:
+            base_dir, chunks_dir = output_paths_for(target)
+            full_md_path = base_dir / f"{doc_name_from_path(target)}.md"
+            if full_md_path.exists() and not force:
+                print(f"[yellow]Skip existing:[/yellow] {full_md_path}")
+                continue
+
+            # Convert DOCX to Markdown
+            try:
+                md_text = convert_docx_to_markdown(target)
+            except FileNotFoundError:
+                print(f"[red]Error:[/red] File not found: {target}")
+                continue
+            except RuntimeError as e:
+                print(f"[red]Error:[/red] Conversion failed for {target}: {e}")
+                continue
+            except Exception as e:
+                print(f"[red]Error:[/red] Unexpected error converting {target}: {e}")
+                continue
+
+            # Write full markdown
+            try:
+                write_text(full_md_path, md_text)
+                print(f"[green]Wrote:[/green] {full_md_path}")
+            except PermissionError:
+                print(f"[red]Error:[/red] Permission denied writing to {full_md_path}")
+                continue
+            except Exception as e:
+                print(f"[red]Error:[/red] Failed to write {full_md_path}: {e}")
+                continue
+
+            # Chunk markdown
+            try:
+                chunks = chunk_markdown(
+                    md_text, min_tokens=min_tokens, max_tokens=max_tokens
+                )
+            except ValueError as e:
+                print(f"[red]Error:[/red] Chunking failed for {target}: {e}")
+                continue
+
+            if dry_run:
+                print(
+                    f"[cyan]Dry-run:[/cyan] would write {len(chunks)} chunks "
+                    f"for {target.name}"
+                )
+            else:
+                try:
+                    save_chunks(target, chunks)
+                    print(f"[green]Chunks:[/green] wrote {len(chunks)} files")
+                except Exception as e:
+                    print(f"[red]Error:[/red] Failed to save chunks for {target}: {e}")
+                    continue
+        except Exception as e:
+            print(f"[red]Error:[/red] Unexpected error processing {target}: {e}")
+            continue
 
 
 def main() -> None:

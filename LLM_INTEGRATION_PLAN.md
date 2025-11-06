@@ -89,7 +89,7 @@ from typing import Dict, Any, Optional
 class LLMProvider(ABC):
     @abstractmethod
     def propose_chunk_operations(
-        self, 
+        self,
         markdown_text: str,
         chunks_schema: List[Dict[str, Any]],
         max_tokens: int,
@@ -101,7 +101,7 @@ class LLMProvider(ABC):
 class OllamaProvider(LLMProvider):
     def __init__(self, model: str = "llama3.1:8b", base_url: str = "http://localhost:11434"):
         # Initialize Ollama client
-    
+
 class OpenAIProvider(LLMProvider):
     def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
         # Initialize OpenAI client
@@ -203,14 +203,14 @@ def _llm_propose_boundaries(
 ) -> Optional[Dict[str, Any]]:
     """Call LLM to propose chunk boundary adjustments"""
     llm_provider = _get_provider(
-        provider, 
-        model=model, 
+        provider,
+        model=model,
         api_key=api_key
     )
-    
+
     if not llm_provider:
         return None
-    
+
     try:
         return llm_provider.propose_chunk_operations(
             markdown_text=markdown_text,
@@ -256,17 +256,17 @@ def convert(
     openai_api_key: str = typer.Option(None, help="OpenAI API key (or use OPENAI_API_KEY env var)"),
 ) -> None:
     # ... existing code ...
-    
+
     chunks = chunk_markdown(md_text, min_tokens=min_tokens, max_tokens=max_tokens)
-    
+
     # NEW: LLM validation step
     if llm_validate:
         from .llm import validate_and_adjust_chunks
         from .config import settings
-        
+
         model = llm_model or settings.local_model
         api_key = openai_api_key or settings.openai_api_key
-        
+
         print(f"[cyan]Validating chunks with LLM ({llm_provider})...[/cyan]")
         chunks = validate_and_adjust_chunks(
             md_text,
@@ -277,7 +277,7 @@ def convert(
             provider=llm_provider,
         )
         print(f"[green]LLM validation complete[/green]")
-    
+
     # ... rest of existing code ...
 ```
 
@@ -419,10 +419,10 @@ logger.warning(f"LLM unavailable, using original chunks")
    ```bash
    # Start Ollama
    ollama serve
-   
+
    # Pull model
    ollama pull llama3.1:8b
-   
+
    # Test CLI
    python -m docs_chunker.cli documents/ --llm-validate --llm-provider local
    ```
@@ -445,7 +445,7 @@ logger.warning(f"LLM unavailable, using original chunks")
 
 ### 1. Large Documents
 - **Problem**: LLM context window limits
-- **Solution**: 
+- **Solution**:
   - Limit chunks sent to LLM (e.g., first 50 chunks)
   - Or batch process in groups
   - Or skip LLM for very large documents
@@ -512,4 +512,3 @@ logger.warning(f"LLM unavailable, using original chunks")
 - LLM is for **optimization**, not requirement
 - Always preserve content (no loss allowed)
 - Test with real Hebrew documents
-

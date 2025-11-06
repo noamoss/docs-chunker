@@ -1,2 +1,0 @@
-[console_scripts]
-docs-chunker = docs_chunker.cli:app
