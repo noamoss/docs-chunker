@@ -14,7 +14,11 @@ def doc_name_from_path(input_path: Path) -> str:
 
 def output_paths_for(input_path: Path) -> tuple[Path, Path]:
     name = doc_name_from_path(input_path)
-    base_dir = Path(settings.output_dir) / name
+    # Use absolute path if settings.output_dir is absolute, otherwise relative to cwd
+    output_base = Path(settings.output_dir)
+    if not output_base.is_absolute():
+        output_base = Path.cwd() / output_base
+    base_dir = output_base / name
     chunks_dir = base_dir / "chunks"
     return base_dir, chunks_dir
 

@@ -1,4 +1,3 @@
-from pathlib import Path
 from types import SimpleNamespace
 
 from typer.testing import CliRunner
@@ -24,10 +23,11 @@ def test_cli_end_to_end_writes_full_md_and_chunks(monkeypatch, tmp_path):
     assert result.exit_code == 0, result.output
 
     # Check outputs
-    out_base = Path("/home/noam/docs-chunker/output") / input_doc.stem
+    from docs_chunker.io import output_paths_for
+
+    out_base, chunks_dir = output_paths_for(input_doc)
     full_md = out_base / f"{input_doc.stem}.md"
     assert full_md.exists()
-    chunks_dir = out_base / "chunks"
     files = sorted(list(chunks_dir.glob("*.md")))
     assert len(files) >= 2
     content0 = files[0].read_text(encoding="utf-8")
