@@ -47,6 +47,12 @@ docs-chunker = "docs_chunker.cli:app"
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.ruff]
 line-length = 88
 target-version = "py310"
@@ -63,20 +69,20 @@ target-version = ["py310", "py311", "py312"]
 python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+check_untyped_defs = true
 disallow_untyped_defs = false
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-q"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 pythonpath = ["src"]
-
-[tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.coverage.run]
 source = ["src"]
