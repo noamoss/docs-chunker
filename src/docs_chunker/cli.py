@@ -39,7 +39,10 @@ def convert(
         # Heuristic chunking
         chunks = chunk_markdown(md_text, min_tokens=min_tokens, max_tokens=max_tokens)
         if dry_run:
-            print(f"[cyan]Dry-run:[/cyan] would write {len(chunks)} chunks for {target.name}")
+            print(
+                f"[cyan]Dry-run:[/cyan] would write {len(chunks)} chunks "
+                f"for {target.name}"
+            )
         else:
             save_chunks(target, chunks)
             print(f"[green]Chunks:[/green] wrote {len(chunks)} files")

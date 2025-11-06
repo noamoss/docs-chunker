@@ -1,9 +1,9 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .chunk import Chunk, estimate_tokens
 
 
-def _serialize_chunks(chunks: List[Chunk]) -> List[Dict[str, Any]]:
+def _serialize_chunks(chunks: list[Chunk]) -> list[dict[str, Any]]:
     return [
         {
             "id": c.id,
@@ -15,7 +15,9 @@ def _serialize_chunks(chunks: List[Chunk]) -> List[Dict[str, Any]]:
     ]
 
 
-def _apply_operations(markdown_text: str, chunks: List[Chunk], plan: Dict[str, Any]) -> List[Chunk]:
+def _apply_operations(
+    markdown_text: str, chunks: list[Chunk], plan: dict[str, Any]
+) -> list[Chunk]:
     ops = plan.get("operations") or []
     result = list(chunks)
     for op in ops:
@@ -48,12 +50,12 @@ def _apply_operations(markdown_text: str, chunks: List[Chunk], plan: Dict[str, A
 
 def _llm_propose_boundaries(
     markdown_text: str,
-    chunks_schema: List[Dict[str, Any]],
+    chunks_schema: list[dict[str, Any]],
     *,
     language_hint: str = "auto",
     provider: str = "local",
     max_tokens: int = 1200,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """
     Placeholder for actual LLM call. Returns None when no external model is available.
     Tests monkeypatch this function to return a plan dict with operations.
@@ -63,15 +65,16 @@ def _llm_propose_boundaries(
 
 def validate_and_adjust_chunks(
     markdown_text: str,
-    chunks: List[Chunk],
+    chunks: list[Chunk],
     min_tokens: int,
     max_tokens: int,
     *,
     language_hint: str = "auto",
     provider: str = "local",
-) -> List[Chunk]:
+) -> list[Chunk]:
     """
-    Ask an LLM to propose merges/splits, then apply them. Guarantees coverage is preserved.
+    Ask an LLM to propose merges/splits, then apply them.
+    Guarantees coverage is preserved.
     If LLM is unavailable or returns invalid output, returns the original chunks.
     """
     proposal = _llm_propose_boundaries(
@@ -90,7 +93,7 @@ def validate_and_adjust_chunks(
         return chunks
 
     # Optional: enforce min/max softly via further merges (not using LLM)
-    result: List[Chunk] = []
+    result: list[Chunk] = []
     for ch in adjusted:
         if result and estimate_tokens(result[-1].content) < min_tokens:
             prev = result.pop()

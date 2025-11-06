@@ -2,7 +2,6 @@ import textwrap
 
 from docs_chunker.chunk import chunk_markdown, estimate_tokens
 
-
 SAMPLE_MD = (
     textwrap.dedent(
         """

@@ -8,7 +8,9 @@ from docs_chunker.io import doc_name_from_path, output_paths_for
 class FakeMarkItDown:
     def convert(self, path: str):
         # Simulate a simple conversion with Hebrew and English, headings preserved
-        text = """# כותרת ראשית\n\n## Section 1\nParagraph EN.\n\n## סעיף 2\nפסקה HE.\n"""
+        text = (
+            """# כותרת ראשית\n\n## Section 1\nParagraph EN.\n\n## סעיף 2\nפסקה HE.\n"""
+        )
         return SimpleNamespace(text_content=text)
 
 

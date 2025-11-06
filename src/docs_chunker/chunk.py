@@ -68,7 +68,9 @@ def _split_oversized_chunk(chunk: Chunk, max_tokens: int) -> list[Chunk]:
             start = subheadings[i - 1][0] if i > 0 else 0
             end = sub_idx
             if start < end:
-                parts.append((start, end, subheadings[i - 1][2] if i > 0 else chunk.title))
+                parts.append(
+                    (start, end, subheadings[i - 1][2] if i > 0 else chunk.title)
+                )
         # Add last part
         if subheadings:
             last_start = subheadings[-1][0]
@@ -80,13 +82,19 @@ def _split_oversized_chunk(chunk: Chunk, max_tokens: int) -> list[Chunk]:
             if estimate_tokens(part_content) > max_tokens:
                 # Recursively split this part
                 temp_chunk = Chunk(
-                    id=chunk.id, title=part_title, level=chunk.level + 1, content=part_content
+                    id=chunk.id,
+                    title=part_title,
+                    level=chunk.level + 1,
+                    content=part_content,
                 )
                 split_chunks.extend(_split_oversized_chunk(temp_chunk, max_tokens))
             else:
                 split_chunks.append(
                     Chunk(
-                        id=chunk.id, title=part_title, level=chunk.level + 1, content=part_content
+                        id=chunk.id,
+                        title=part_title,
+                        level=chunk.level + 1,
+                        content=part_content,
                     )
                 )
         return split_chunks
@@ -120,13 +128,21 @@ def _split_oversized_chunk(chunk: Chunk, max_tokens: int) -> list[Chunk]:
                 # Recursively split this part
                 part_title = _extract_title_from_content(part_content, chunk.title)
                 temp_chunk = Chunk(
-                    id=chunk.id, title=part_title, level=chunk.level, content=part_content
+                    id=chunk.id,
+                    title=part_title,
+                    level=chunk.level,
+                    content=part_content,
                 )
                 split_chunks.extend(_split_oversized_chunk(temp_chunk, max_tokens))
             else:
                 part_title = _extract_title_from_content(part_content, chunk.title)
                 split_chunks.append(
-                    Chunk(id=chunk.id, title=part_title, level=chunk.level, content=part_content)
+                    Chunk(
+                        id=chunk.id,
+                        title=part_title,
+                        level=chunk.level,
+                        content=part_content,
+                    )
                 )
 
         return split_chunks if split_chunks else [chunk]
@@ -145,7 +161,9 @@ def _split_oversized_chunk(chunk: Chunk, max_tokens: int) -> list[Chunk]:
         split_chunks = []
         for idx, part in enumerate(parts):
             title = chunk.title if idx == 0 else f"{chunk.title} (part {idx + 1})"
-            split_chunks.append(Chunk(id=chunk.id, title=title, level=chunk.level, content=part))
+            split_chunks.append(
+                Chunk(id=chunk.id, title=title, level=chunk.level, content=part)
+            )
         return split_chunks
 
     # Split by paragraphs, grouping to stay under max_tokens
@@ -162,20 +180,29 @@ def _split_oversized_chunk(chunk: Chunk, max_tokens: int) -> list[Chunk]:
                 group_content = "\n\n".join(current_group)
                 title = _extract_title_from_content(group_content, chunk.title)
                 split_chunks.append(
-                    Chunk(id=chunk.id, title=title, level=chunk.level, content=group_content)
+                    Chunk(
+                        id=chunk.id,
+                        title=title,
+                        level=chunk.level,
+                        content=group_content,
+                    )
                 )
                 current_group = []
                 current_tokens = 0
             # Split the oversized paragraph
             part_title = _extract_title_from_content(para, chunk.title)
-            temp_chunk = Chunk(id=chunk.id, title=part_title, level=chunk.level, content=para)
+            temp_chunk = Chunk(
+                id=chunk.id, title=part_title, level=chunk.level, content=para
+            )
             split_chunks.extend(_split_oversized_chunk(temp_chunk, max_tokens))
         elif current_tokens + para_tokens > max_tokens and current_group:
             # Finish current group
             group_content = "\n\n".join(current_group)
             title = _extract_title_from_content(group_content, chunk.title)
             split_chunks.append(
-                Chunk(id=chunk.id, title=title, level=chunk.level, content=group_content)
+                Chunk(
+                    id=chunk.id, title=title, level=chunk.level, content=group_content
+                )
             )
             current_group = [para]
             current_tokens = para_tokens
@@ -224,9 +251,10 @@ def chunk_markdown(
             )
         ]
 
-    # Choose a base level that partitions the document (one level deeper than the minimum if possible)
-    min_level = min(l for _, l, _ in headings)
-    has_deeper = any(l > min_level for _, l, _ in headings)
+    # Choose a base level that partitions the document
+    # (one level deeper than the minimum if possible)
+    min_level = min(level for _, level, _ in headings)
+    has_deeper = any(level > min_level for _, level, _ in headings)
     base_level = min_level + 1 if has_deeper else min_level
 
     # Boundaries are all headings with level <= base_level, starting from the first line
@@ -244,7 +272,8 @@ def chunk_markdown(
     if boundaries[-1] != len(lines):
         boundaries.append(len(lines))
 
-    # Build chunks between consecutive boundaries; title/level from the heading at the start boundary if present
+    # Build chunks between consecutive boundaries;
+    # title/level from the heading at the start boundary if present
     chunks: list[Chunk] = []
     for i in range(len(boundaries) - 1):
         start = boundaries[i]
@@ -255,7 +284,8 @@ def chunk_markdown(
             title = m.group(2).strip()
             level = len(m.group(1))
         else:
-            # Use previous heading's title/level if exists; otherwise extract from content
+            # Use previous heading's title/level if exists;
+            # otherwise extract from content
             if chunks:
                 title = chunks[-1].title
                 level = chunks[-1].level
@@ -265,7 +295,9 @@ def chunk_markdown(
                 title = _extract_title_from_content(content_preview)
                 level = 0
         content = "".join(lines[start:end])
-        chunks.append(Chunk(id=len(chunks) + 1, title=title, level=level, content=content))
+        chunks.append(
+            Chunk(id=len(chunks) + 1, title=title, level=level, content=content)
+        )
 
     # Merge undersized adjacent chunks
     merged: list[Chunk] = []

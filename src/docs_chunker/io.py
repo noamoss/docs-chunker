@@ -1,6 +1,5 @@
 import hashlib
 from pathlib import Path
-from typing import Tuple
 
 from .config import settings
 
@@ -13,7 +12,7 @@ def doc_name_from_path(input_path: Path) -> str:
     return input_path.stem
 
 
-def output_paths_for(input_path: Path) -> Tuple[Path, Path]:
+def output_paths_for(input_path: Path) -> tuple[Path, Path]:
     name = doc_name_from_path(input_path)
     base_dir = Path(settings.output_dir) / name
     chunks_dir = base_dir / "chunks"

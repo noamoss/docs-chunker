@@ -12,7 +12,12 @@ def test_e2e_docx_to_chunks(monkeypatch, tmp_path):
         def convert(self, path: str):
             class R:
                 text_content = (
-                    "# כותרת\n\n" "Intro.\n\n" "## A\n" "One.\n\n" "## סעיף 2\n" "שתיים.\n"
+                    "# כותרת\n\n"
+                    "Intro.\n\n"
+                    "## A\n"
+                    "One.\n\n"
+                    "## סעיף 2\n"
+                    "שתיים.\n"
                 )
 
             return R()

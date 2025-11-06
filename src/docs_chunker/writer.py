@@ -69,7 +69,9 @@ def save_chunks(input_path: Path, chunks: list[Chunk]) -> None:
             "token_count": estimate_tokens(ch.content),
             "checksum": checksum(ch.content),
         }
-        front = "---\n" + yaml.safe_dump(meta, allow_unicode=True, sort_keys=True) + "---\n"
+        front = (
+            "---\n" + yaml.safe_dump(meta, allow_unicode=True, sort_keys=True) + "---\n"
+        )
         slug = slugify(ch.title)
         filename = f"{idx:03d}_{slug}.md"
         write_text(chunks_dir / filename, front + ch.content)

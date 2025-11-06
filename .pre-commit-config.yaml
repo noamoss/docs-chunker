@@ -3,17 +3,30 @@ repos:
     rev: v4.5.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^(.venv/|output/|__pycache__/)
       - id: end-of-file-fixer
+        exclude: ^(.venv/|output/|__pycache__/)
       - id: check-yaml
       - id: check-added-large-files
+        exclude: ^(.venv/|output/)
       - id: check-json
       - id: check-toml
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        exclude: ^(.venv/|output/|__pycache__/)
+      - id: ruff-format
+        exclude: ^(.venv/|output/|__pycache__/)
 
   - repo: https://github.com/psf/black
     rev: 25.9.0
     hooks:
       - id: black
         language_version: python3.11
+        exclude: ^(.venv/|output/|__pycache__/)
 
   - repo: local
     hooks:
@@ -24,5 +37,3 @@ repos:
         types: [python]
         pass_filenames: false
         always_run: true
-
-

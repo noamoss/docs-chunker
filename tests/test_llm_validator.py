@@ -43,7 +43,9 @@ def test_validator_applies_merge_plan(monkeypatch):
 
     # Plan: merge last two chunks
     def fake_propose(markdown_text, chunks_schema, **kwargs):
-        return {"operations": [{"type": "merge", "range": [len(chunks) - 1, len(chunks)]}]}
+        return {
+            "operations": [{"type": "merge", "range": [len(chunks) - 1, len(chunks)]}]
+        }
 
     monkeypatch.setattr(llm_mod, "_llm_propose_boundaries", fake_propose)
     adjusted = validate_and_adjust_chunks(SAMPLE_MD, chunks, 1, 100, language_hint="en")
