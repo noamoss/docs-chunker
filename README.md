@@ -6,10 +6,13 @@ A Python service that converts DOCX/PDF documents to Markdown and performs struc
 
 - **Document Conversion**: Converts DOCX files to Markdown using MarkItDown
 - **Intelligent Chunking**: Structure-aware chunking based on document headings, sections, and subsections
+- **Accurate Token Counting**: Uses tiktoken for precise token estimation (with fallback to heuristic)
 - **Hebrew Support**: Full support for Hebrew/RTL text with proper UTF-8 handling
-- **Configurable Token Limits**: Adjustable min/max token counts per chunk
+- **Configurable Token Limits**: Adjustable min/max token counts per chunk with validation
 - **YAML Front Matter**: Each chunk includes metadata (id, title, level, token_count, checksum)
-- **Content Preservation**: Ensures no content loss during chunking
+- **Content Preservation**: Ensures no content loss during chunking with exact whitespace preservation
+- **Robust Error Handling**: Comprehensive error handling with user-friendly messages
+- **Security**: Path validation to prevent traversal attacks, secret scanning in pre-commit hooks
 
 ## Installation
 
@@ -112,8 +115,12 @@ The chunker uses a hierarchical approach:
    - Subheadings (if available)
    - Numbered lists (1., 2., etc.)
    - Bold headings (**text**)
-   - Paragraph boundaries
+   - Paragraph boundaries (with exact whitespace preservation)
 4. **Title extraction**: Automatically extracts titles from headings or content
+5. **Safety features**:
+   - Max depth protection prevents infinite recursion on edge cases
+   - Exact whitespace preservation ensures byte-for-byte content reconstruction
+   - Path hashing prevents output directory collisions for same-named files
 
 ## Requirements
 
@@ -122,6 +129,22 @@ The chunker uses a hierarchical approach:
 - typer (for CLI)
 - pydantic (for configuration)
 - pyyaml (for chunk metadata)
+- tiktoken (for accurate token counting)
+
+## Error Handling
+
+The service includes comprehensive error handling:
+
+- **Input Validation**: Validates token parameters (min_tokens >= 1, max_tokens >= min_tokens)
+- **File Validation**: Checks file existence, format, and permissions
+- **User-Friendly Messages**: Clear, actionable error messages using Rich formatting
+- **Graceful Degradation**: Continues processing other files if one fails
+
+## Security
+
+- **Path Validation**: Prevents path traversal attacks with `validate_path()` function
+- **Secret Scanning**: detect-secrets hook in pre-commit to prevent accidental secret commits
+- **Safe Output Paths**: Uses path hashing to prevent collisions and ensure deterministic outputs
 
 ## License
 
@@ -130,5 +153,3 @@ The chunker uses a hierarchical approach:
 ## Contributing
 
 [Add contribution guidelines here]
-
-

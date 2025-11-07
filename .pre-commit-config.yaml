@@ -3,17 +3,43 @@ repos:
     rev: v4.5.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^(.venv/|output/|documents/|__pycache__/)
       - id: end-of-file-fixer
+        exclude: ^(.venv/|output/|documents/|__pycache__/)
       - id: check-yaml
+        exclude: ^(.venv/|output/|documents/)
       - id: check-added-large-files
+        args: ['--maxkb=1000']
+        exclude: ^(.venv/|output/|documents/)
+      - id: detect-private-key
+      - id: check-merge-conflict
       - id: check-json
+        exclude: ^(.venv/|output/|documents/)
       - id: check-toml
+        exclude: ^(.venv/|output/|documents/)
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^(src/|tests/)
+      - id: ruff-format
+        files: ^(src/|tests/)
 
   - repo: https://github.com/psf/black
     rev: 25.9.0
     hooks:
       - id: black
         language_version: python3.11
+        files: ^(src/|tests/)
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        exclude: ^(.venv/|output/|documents/|__pycache__/)
+        pass_filenames: false
 
   - repo: local
     hooks:
@@ -24,5 +50,3 @@ repos:
         types: [python]
         pass_filenames: false
         always_run: true
-
-

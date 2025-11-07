@@ -8,7 +8,9 @@ from docs_chunker.io import doc_name_from_path, output_paths_for
 class FakeMarkItDown:
     def convert(self, path: str):
         # Simulate a simple conversion with Hebrew and English, headings preserved
-        text = """# כותרת ראשית\n\n## Section 1\nParagraph EN.\n\n## סעיף 2\nפסקה HE.\n"""
+        text = (
+            """# כותרת ראשית\n\n## Section 1\nParagraph EN.\n\n## סעיף 2\nפסקה HE.\n"""
+        )
         return SimpleNamespace(text_content=text)
 
 
@@ -52,3 +54,44 @@ def test_cli_writes_expected_output(monkeypatch, tmp_path):
     assert full_md.exists()
     content = full_md.read_text(encoding="utf-8")
     assert "Section 1" in content and "סעיף" in content
+
+
+def test_convert_file_not_found(monkeypatch, tmp_path):
+    """Test FileNotFoundError handling."""
+    import pytest
+
+    from docs_chunker.convert import convert_docx_to_markdown
+
+    non_existent = tmp_path / "nonexistent.docx"
+    with pytest.raises(FileNotFoundError, match="File not found"):
+        convert_docx_to_markdown(non_existent)
+
+
+def test_convert_invalid_file_format(monkeypatch, tmp_path):
+    """Test handling of non-DOCX files."""
+    import pytest
+
+    from docs_chunker import convert as convert_mod
+    from docs_chunker.convert import convert_docx_to_markdown
+
+    monkeypatch.setattr(convert_mod, "MarkItDown", FakeMarkItDown)
+    txt_file = tmp_path / "example.txt"
+    txt_file.write_text("Not a docx file")
+
+    with pytest.raises(ValueError, match="Expected .docx file"):
+        convert_docx_to_markdown(txt_file)
+
+
+def test_convert_markitdown_unavailable(monkeypatch, tmp_path):
+    """Test RuntimeError when markitdown unavailable."""
+    import pytest
+
+    from docs_chunker import convert as convert_mod
+    from docs_chunker.convert import convert_docx_to_markdown
+
+    monkeypatch.setattr(convert_mod, "MarkItDown", None)
+    docx_file = tmp_path / "example.docx"
+    docx_file.write_bytes(b"fake")
+
+    with pytest.raises(RuntimeError, match="markitdown is not available"):
+        convert_docx_to_markdown(docx_file)

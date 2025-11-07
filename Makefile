@@ -1,11 +1,11 @@
- .PHONY: install lint fmt type test run
+.PHONY: install lint fmt type test run clean
 
 install:
-	@echo "Installing deps with pip in existing venv"
-	. .venv/bin/activate && pip install -U pip setuptools wheel && \
-		pip install typer pydantic pyyaml rich fastapi uvicorn httpx pytest pytest-mock pytest-cov ruff black mypy markitdown
+	pip install -e ".[dev]"
+	pip install "markitdown[docx]"
 
 lint:
+	ruff check src tests
 	black --check src tests
 
 fmt:
@@ -15,7 +15,13 @@ type:
 	mypy src
 
 test:
-	pytest
+	pytest -v
 
 run:
-	python -m docs_chunker.cli --help
+	python -m docs_chunker.cli
+
+clean:
+	find . -type d -name __pycache__ -exec rm -r {} +
+	find . -type f -name "*.pyc" -delete
+	find . -type d -name "*.egg-info" -exec rm -r {} +
+	rm -rf .pytest_cache .mypy_cache .ruff_cache .coverage coverage.xml htmlcov
