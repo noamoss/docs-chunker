@@ -32,3 +32,46 @@ def test_cli_convert_then_chunk(monkeypatch, tmp_path):
     assert (base_dir / "demo.md").exists()
     files = list(chunks_dir.glob("*.md"))
     assert len(files) >= 2
+
+
+def test_cli_convert_with_llm_validation(monkeypatch, tmp_path):
+    from docs_chunker import convert as convert_mod
+
+    class FakeMarkItDown:
+        def convert(self, path: str):
+            class R:
+                text_content = "# Title\n\n## A\nOne.\n"
+
+            return R()
+
+    monkeypatch.setattr(convert_mod, "MarkItDown", FakeMarkItDown)
+
+    from docs_chunker import llm as llm_mod
+
+    called = {}
+
+    def fake_validate(markdown_text, chunks, *args, **kwargs):
+        called["invoked"] = True
+        return chunks
+
+    monkeypatch.setattr(llm_mod, "validate_and_adjust_chunks", fake_validate)
+
+    input_doc = tmp_path / "demo.docx"
+    input_doc.write_bytes(b"fake")
+
+    runner = CliRunner()
+    res = runner.invoke(
+        app,
+        [
+            str(input_doc),
+            "--force",
+            "--min-tokens",
+            "1",
+            "--llm-validate",
+            "--llm-provider",
+            "local",
+        ],
+        catch_exceptions=False,
+    )
+    assert res.exit_code == 0, res.output
+    assert called.get("invoked") is True

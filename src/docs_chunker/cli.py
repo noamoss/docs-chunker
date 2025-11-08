@@ -3,7 +3,9 @@ from pathlib import Path
 import typer
 from rich import print
 
+from . import llm
 from .chunk import chunk_markdown
+from .config import settings
 from .convert import convert_docx_to_markdown
 from .io import doc_name_from_path, output_paths_for, write_text
 from .writer import save_chunks
@@ -18,6 +20,27 @@ def convert(
     dry_run: bool = typer.Option(False, help="Do not write chunk files; only report"),
     min_tokens: int = typer.Option(200, help="Minimum tokens per chunk (heuristic)"),
     max_tokens: int = typer.Option(1200, help="Maximum tokens per chunk (heuristic)"),
+    llm_validate: bool | None = typer.Option(
+        None,
+        "--llm-validate/--no-llm-validate",
+        help="Validate chunk boundaries with an LLM after heuristic chunking.",
+    ),
+    llm_provider: str | None = typer.Option(
+        None,
+        help="LLM provider to use (local or openai). Defaults to configuration.",
+    ),
+    llm_model: str | None = typer.Option(
+        None,
+        help="Model identifier for the chosen LLM provider.",
+    ),
+    ollama_base_url: str | None = typer.Option(
+        None,
+        help="Base URL for Ollama when using the local provider.",
+    ),
+    openai_api_key: str | None = typer.Option(
+        None,
+        help="API key for OpenAI provider (overrides environment).",
+    ),
 ) -> None:
     """Convert DOCX files to Markdown and chunk them for RAG systems."""
     # Validate token parameters
@@ -36,6 +59,19 @@ def convert(
     if not input_path.exists():
         print(f"[red]Error:[/red] Path does not exist: {input_path}")
         raise typer.Exit(code=1)
+
+    # Resolve LLM configuration overrides
+    effective_llm_validate = (
+        settings.llm_validation_enabled if llm_validate is None else llm_validate
+    )
+    provider_value = (llm_provider or settings.llm_provider).lower()
+    model_value = llm_model or (
+        settings.local_model if provider_value == "local" else settings.openai_model
+    )
+    base_url_value = (
+        ollama_base_url if ollama_base_url is not None else settings.ollama_base_url
+    )
+    api_key_value = openai_api_key or settings.openai_api_key
 
     # Collect targets
     targets = []
@@ -96,6 +132,28 @@ def convert(
             except ValueError as e:
                 print(f"[red]Error:[/red] Chunking failed for {target}: {e}")
                 continue
+
+            if effective_llm_validate:
+                try:
+                    adjusted_chunks = llm.validate_and_adjust_chunks(
+                        md_text,
+                        chunks,
+                        min_tokens,
+                        max_tokens,
+                        language_hint=settings.language,
+                        provider=provider_value,
+                        model=model_value,
+                        base_url=base_url_value,
+                        api_key=api_key_value,
+                    )
+                    chunks = adjusted_chunks
+                    print(
+                        f"[cyan]LLM validation:[/cyan] using provider '{provider_value}'"
+                    )
+                except Exception as e:
+                    print(
+                        f"[yellow]Warning:[/yellow] LLM validation failed, using heuristic chunks: {e}"
+                    )
 
             if dry_run:
                 print(

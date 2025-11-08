@@ -1,6 +1,7 @@
 from typing import Any
 
 from .chunk import Chunk, estimate_tokens
+from .llm_providers import get_provider
 
 
 def _serialize_chunks(chunks: list[Chunk]) -> list[dict[str, Any]]:
@@ -55,12 +56,30 @@ def _llm_propose_boundaries(
     language_hint: str = "auto",
     provider: str = "local",
     max_tokens: int = 1200,
+    min_tokens: int = 200,
+    model: str | None = None,
+    base_url: str | None = None,
+    api_key: str | None = None,
 ) -> dict[str, Any] | None:
-    """
-    Placeholder for actual LLM call. Returns None when no external model is available.
-    Tests monkeypatch this function to return a plan dict with operations.
-    """
-    return None
+    provider_impl = get_provider(
+        provider,
+        model=model,
+        base_url=base_url,
+        api_key=api_key,
+    )
+    if provider_impl is None:
+        return None
+
+    try:
+        return provider_impl.propose_chunk_operations(
+            markdown_text,
+            chunks_schema,
+            min_tokens=min_tokens,
+            max_tokens=max_tokens,
+            language_hint=language_hint,
+        )
+    except Exception:
+        return None
 
 
 def validate_and_adjust_chunks(
@@ -71,6 +90,9 @@ def validate_and_adjust_chunks(
     *,
     language_hint: str = "auto",
     provider: str = "local",
+    model: str | None = None,
+    base_url: str | None = None,
+    api_key: str | None = None,
 ) -> list[Chunk]:
     """
     Ask an LLM to propose merges/splits, then apply them.
@@ -83,6 +105,10 @@ def validate_and_adjust_chunks(
         language_hint=language_hint,
         provider=provider,
         max_tokens=max_tokens,
+        min_tokens=min_tokens,
+        model=model,
+        base_url=base_url,
+        api_key=api_key,
     )
     if not proposal:
         return chunks
