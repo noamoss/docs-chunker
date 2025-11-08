@@ -1,4 +1,5 @@
 """Utilities for building prompts and parsing strategies from LLMs."""
+
 from __future__ import annotations
 
 import json
@@ -37,9 +38,7 @@ def _build_strategy_prompt(
         preview_lines.append(f"{marker} {heading.title}:\n{preview}\n")
 
     preview_block = (
-        "\n".join(preview_lines)
-        if preview_lines
-        else "(No section previews available)"
+        "\n".join(preview_lines) if preview_lines else "(No section previews available)"
     )
 
     prompt = (

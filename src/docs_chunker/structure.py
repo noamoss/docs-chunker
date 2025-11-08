@@ -1,4 +1,5 @@
 """Utilities for extracting document structure from Markdown text."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -103,9 +104,7 @@ def get_heading_hierarchy(structure: DocumentStructure) -> str:
     for heading in structure.headings:
         indent = "  " * max(0, heading.level - 1)
         marker = "#" * heading.level
-        lines.append(
-            f"{indent}{marker} {heading.title} ({heading.token_count} tokens)"
-        )
+        lines.append(f"{indent}{marker} {heading.title} ({heading.token_count} tokens)")
     return "\n".join(lines)
 
 

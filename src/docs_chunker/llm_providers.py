@@ -1,4 +1,5 @@
 """Provider abstractions for LLM-based chunk validation."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,8 +20,7 @@ class LLMProvider(Protocol):
         min_tokens: int,
         max_tokens: int,
         language_hint: str = "auto",
-    ) -> dict[str, Any] | None:
-        ...
+    ) -> dict[str, Any] | None: ...
 
 
 @dataclass

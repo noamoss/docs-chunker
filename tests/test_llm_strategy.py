@@ -87,7 +87,7 @@ def test_parse_strategy_response_custom_boundaries():
 
 
 def test_parse_strategy_response_from_code_block():
-    response = "```json\n{\"strategy\": \"by_level\", \"level\": 3}\n```"
+    response = '```json\n{"strategy": "by_level", "level": 3}\n```'
     strategy = _parse_strategy_response(response)
     assert strategy is not None
     assert strategy.level == 3
@@ -104,13 +104,13 @@ def test_call_ollama_strategy_success(monkeypatch):
             self.host = host
 
         def generate(self, **kwargs):
-            return {"response": "{\"strategy\": \"by_level\", \"level\": 2}"}
+            return {"response": '{"strategy": "by_level", "level": 2}'}
 
     dummy_module = types.SimpleNamespace(Client=DummyClient)
     monkeypatch.setitem(sys.modules, "ollama", dummy_module)
 
     response = _call_ollama_strategy("prompt", model="test", base_url="http://example")
-    assert "\"strategy\"" in response
+    assert '"strategy"' in response
 
     monkeypatch.delitem(sys.modules, "ollama")
 
@@ -161,9 +161,7 @@ def test_chunk_with_llm_strategy_no_strategy(monkeypatch):
     def fake_decide_none(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(
-        "docs_chunker.llm.decide_chunking_strategy", fake_decide_none
-    )
+    monkeypatch.setattr("docs_chunker.llm.decide_chunking_strategy", fake_decide_none)
 
     chunks, structure, strategy = llm_mod.chunk_with_llm_strategy(
         md,

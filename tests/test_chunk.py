@@ -247,9 +247,7 @@ def test_chunk_by_strategy_level():
 def test_chunk_by_strategy_custom_boundaries():
     md = "Intro\nLine\nMore\n"
     structure = extract_structure(md)
-    strategy = ChunkingStrategy(
-        strategy_type="custom_boundaries", boundaries=[0, 2]
-    )
+    strategy = ChunkingStrategy(strategy_type="custom_boundaries", boundaries=[0, 2])
 
     chunks = chunk_by_strategy(md, structure, strategy, min_tokens=1, max_tokens=100)
 
