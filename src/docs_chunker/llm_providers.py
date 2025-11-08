@@ -4,8 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from .structure import extract_structure
 from .llm_strategy import ChunkingStrategy, decide_chunking_strategy
+from .structure import extract_structure
 
 
 class LLMProvider(Protocol):
@@ -83,7 +83,10 @@ def _strategy_to_plan(
 
     if strategy.strategy_type == "by_level" and strategy.level is not None:
         plan["level"] = strategy.level
-    elif strategy.strategy_type == "custom_boundaries" and strategy.boundaries is not None:
+    elif (
+        strategy.strategy_type == "custom_boundaries"
+        and strategy.boundaries is not None
+    ):
         plan["boundaries"] = strategy.boundaries
 
     return plan
@@ -100,7 +103,10 @@ def get_provider(
 
     provider = (provider or "").lower()
     if provider == "local":
-        return OllamaProvider(model=model or "llama3.1:8b", base_url=base_url or "http://localhost:11434")
+        return OllamaProvider(
+            model=model or "llama3.1:8b",
+            base_url=base_url or "http://localhost:11434",
+        )
     if provider == "openai":
         return OpenAIProvider(api_key=api_key, model=model or "gpt-4o-mini")
     return None

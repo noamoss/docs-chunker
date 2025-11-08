@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .llm_strategy import ChunkingStrategy
@@ -379,10 +380,10 @@ def _normalize_chunks(
 
 def _make_chunk_from_range(
     lines: Sequence[str],
-    structure: Optional["DocumentStructure"],
+    structure: DocumentStructure | None,
     start: int,
     end: int,
-) -> Optional[Chunk]:
+) -> Chunk | None:
     if start >= end:
         return None
 
@@ -413,7 +414,7 @@ def _make_chunk_from_range(
 
 def _chunk_by_level(
     markdown_text: str,
-    structure: "DocumentStructure",
+    structure: DocumentStructure,
     level: int,
     min_tokens: int,
     max_tokens: int,
@@ -422,12 +423,12 @@ def _chunk_by_level(
         raise ValueError(f"Invalid heading level: {level}")
 
     lines_keepends = markdown_text.splitlines(keepends=True)
-    total_lines = len(markdown_text.splitlines())
+    total_lines = len(lines_keepends)
 
     boundaries: set[int] = {0, total_lines}
     for heading in structure.headings:
         if heading.level <= level:
-            boundaries.add(heading.section_start)
+            boundaries.add(heading.line_idx)
 
     ordered = sorted(boundaries)
     raw_chunks: list[Chunk] = []
@@ -441,15 +442,17 @@ def _chunk_by_level(
 
 def _chunk_by_boundaries(
     markdown_text: str,
-    structure: Optional["DocumentStructure"],
+    structure: DocumentStructure | None,
     boundaries: Sequence[int],
     min_tokens: int,
     max_tokens: int,
 ) -> list[Chunk]:
     lines_keepends = markdown_text.splitlines(keepends=True)
-    total_lines = len(markdown_text.splitlines())
+    total_lines = len(lines_keepends)
 
-    valid_boundaries = {b for b in boundaries if isinstance(b, int) and 0 <= b <= total_lines}
+    valid_boundaries = {
+        b for b in boundaries if isinstance(b, int) and 0 <= b <= total_lines
+    }
     valid_boundaries.add(0)
     valid_boundaries.add(total_lines)
     ordered = sorted(valid_boundaries)
@@ -465,8 +468,8 @@ def _chunk_by_boundaries(
 
 def chunk_by_strategy(
     markdown_text: str,
-    structure: "DocumentStructure",
-    strategy: "ChunkingStrategy",
+    structure: DocumentStructure,
+    strategy: ChunkingStrategy,
     *,
     min_tokens: int,
     max_tokens: int,

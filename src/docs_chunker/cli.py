@@ -165,7 +165,8 @@ def convert(
                             and strategy_info.boundaries is not None
                         ):
                             strategy_label = (
-                                f"custom boundaries ({len(strategy_info.boundaries)} markers)"
+                                "custom boundaries "
+                                f"({len(strategy_info.boundaries)} markers)"
                             )
                         if strategy_info.reasoning:
                             strategy_label = (
@@ -207,11 +208,13 @@ def convert(
                     )
                     chunks = adjusted_chunks
                     print(
-                        f"[cyan]LLM validation:[/cyan] using provider '{provider_value}'"
+                        "[cyan]LLM validation:[/cyan] using provider "
+                        f"'{provider_value}'"
                     )
                 except Exception as e:
                     print(
-                        f"[yellow]Warning:[/yellow] LLM validation failed, using heuristic chunks: {e}"
+                        "[yellow]Warning:[/yellow] LLM validation failed, "
+                        f"using heuristic chunks: {e}"
                     )
 
             if dry_run:

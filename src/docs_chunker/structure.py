@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
 
 from .chunk import HEADING_RE, estimate_tokens
 
@@ -23,7 +22,7 @@ class HeadingInfo:
 class DocumentStructure:
     """Complete document structure with heading hierarchy metadata."""
 
-    headings: List[HeadingInfo]
+    headings: list[HeadingInfo]
     total_tokens: int
     total_lines: int
     min_level: int

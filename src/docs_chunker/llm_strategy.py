@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal
 
 from .chunk import estimate_tokens
 from .structure import DocumentStructure, get_heading_hierarchy, get_section_preview
@@ -15,9 +15,9 @@ class ChunkingStrategy:
     """LLM-determined chunking strategy description."""
 
     strategy_type: Literal["by_level", "custom_boundaries"]
-    level: Optional[int] = None
-    boundaries: Optional[list[int]] = None
-    reasoning: Optional[str] = None
+    level: int | None = None
+    boundaries: list[int] | None = None
+    reasoning: str | None = None
 
 
 def _build_strategy_prompt(
@@ -36,43 +36,43 @@ def _build_strategy_prompt(
         marker = "#" * heading.level
         preview_lines.append(f"{marker} {heading.title}:\n{preview}\n")
 
-    preview_block = "\n".join(preview_lines) if preview_lines else "(No section previews available)"
+    preview_block = (
+        "\n".join(preview_lines)
+        if preview_lines
+        else "(No section previews available)"
+    )
 
-    prompt = f"""
-You are a document chunking expert optimizing for RAG (Retrieval-Augmented Generation) systems.
-Document statistics:
-- Total tokens: {structure.total_tokens}
-- Total lines: {structure.total_lines}
-- Heading levels present: {structure.min_level} to {structure.max_level}
-
-{hierarchy}
-
-Sample Content from Sections:
-{preview_block}
-
-RAG Requirements:
-- Minimum tokens per chunk: {min_tokens}
-- Maximum tokens per chunk: {max_tokens}
-- Goal: Optimize for embedding-based semantic retrieval
-
-Task: Analyze this document and decide the optimal chunking strategy.
-Considerations:
-1. Semantic coherence: keep related content together.
-2. Retrieval quality: chunks should be self-contained for embedding search.
-3. Token limits: each chunk must be within {min_tokens}-{max_tokens} tokens.
-4. Document structure: use natural document boundaries when possible.
-
-For structured documents, choose a heading level (1-6) to chunk by.
-For unstructured documents, provide custom line boundaries.
-
-Return JSON format:
-{{
-  "strategy": "by_level" | "custom_boundaries",
-  "level": 2,
-  "boundaries": [0, 150, 300],
-  "reasoning": "Brief explanation"
-}}
-""".strip()
+    prompt = (
+        "You are a document chunking expert optimizing for RAG "
+        "(Retrieval-Augmented Generation) systems.\n"
+        "Document statistics:\n"
+        f"- Total tokens: {structure.total_tokens}\n"
+        f"- Total lines: {structure.total_lines}\n"
+        f"- Heading levels present: {structure.min_level} to {structure.max_level}\n\n"
+        f"{hierarchy}\n\n"
+        "Sample Content from Sections:\n"
+        f"{preview_block}\n\n"
+        "RAG Requirements:\n"
+        f"- Minimum tokens per chunk: {min_tokens}\n"
+        f"- Maximum tokens per chunk: {max_tokens}\n"
+        "- Goal: Optimize for embedding-based semantic retrieval\n\n"
+        "Task: Analyze this document and decide the optimal chunking strategy.\n"
+        "Considerations:\n"
+        "1. Semantic coherence: keep related content together.\n"
+        "2. Retrieval quality: chunks should be self-contained for embedding search.\n"
+        "3. Token limits: each chunk must be within "
+        f"{min_tokens}-{max_tokens} tokens.\n"
+        "4. Document structure: use natural document boundaries when possible.\n\n"
+        "For structured documents, choose a heading level (1-6) to chunk by.\n"
+        "For unstructured documents, provide custom line boundaries.\n\n"
+        "Return JSON format:\n"
+        "{\n"
+        '  "strategy": "by_level" | "custom_boundaries",\n'
+        '  "level": 2,\n'
+        '  "boundaries": [0, 150, 300],\n'
+        '  "reasoning": "Brief explanation"\n'
+        "}"
+    )
     return prompt
 
 
@@ -82,19 +82,18 @@ def _build_structure_only_prompt(
     """Prompt focusing solely on structure for large documents."""
 
     hierarchy = get_heading_hierarchy(structure)
-    prompt = f"""
-You are a document chunking expert optimizing for RAG (Retrieval-Augmented Generation) systems.
-The document is too large to include full content. Use the structure information to decide a chunking strategy.
-
-{hierarchy}
-
-Constraints:
-- Minimum tokens per chunk: {min_tokens}
-- Maximum tokens per chunk: {max_tokens}
-- Goal: Optimize for embedding-based semantic retrieval.
-
-Return JSON format as described previously.
-""".strip()
+    prompt = (
+        "You are a document chunking expert optimizing for RAG "
+        "(Retrieval-Augmented Generation) systems.\n"
+        "The document is too large to include full content. Use the structure "
+        "information to decide a chunking strategy.\n\n"
+        f"{hierarchy}\n\n"
+        "Constraints:\n"
+        f"- Minimum tokens per chunk: {min_tokens}\n"
+        f"- Maximum tokens per chunk: {max_tokens}\n"
+        "- Goal: Optimize for embedding-based semantic retrieval.\n\n"
+        "Return JSON format as described previously."
+    )
     return prompt
 
 
@@ -121,7 +120,7 @@ def _call_ollama_strategy(
     prompt: str,
     model: str = "llama3.1:8b",
     base_url: str = "http://localhost:11434",
-) -> Optional[str]:
+) -> str | None:
     """Call the Ollama API and return the raw response text."""
 
     try:
@@ -145,7 +144,7 @@ def _call_ollama_strategy(
         return None
 
 
-def _extract_json_from_response(response_text: str) -> Optional[str]:
+def _extract_json_from_response(response_text: str) -> str | None:
     if not response_text:
         return None
 
@@ -164,7 +163,7 @@ def _extract_json_from_response(response_text: str) -> Optional[str]:
     return None
 
 
-def _parse_strategy_response(response_text: str) -> Optional[ChunkingStrategy]:
+def _parse_strategy_response(response_text: str) -> ChunkingStrategy | None:
     """Parse JSON response into a ``ChunkingStrategy`` instance."""
 
     json_text = _extract_json_from_response(response_text)
@@ -211,7 +210,7 @@ def _decide_strategy_for_large_document(
     *,
     model: str,
     base_url: str,
-) -> Optional[ChunkingStrategy]:
+) -> ChunkingStrategy | None:
     """Fallback path when the document cannot fit entirely into the LLM context."""
 
     prompt = _build_structure_only_prompt(structure, min_tokens, max_tokens)
@@ -230,7 +229,7 @@ def decide_chunking_strategy(
     provider: str = "local",
     model: str = "llama3.1:8b",
     base_url: str = "http://localhost:11434",
-) -> Optional[ChunkingStrategy]:
+) -> ChunkingStrategy | None:
     """Determine chunking strategy using the requested provider."""
 
     if provider != "local":
@@ -248,7 +247,12 @@ def decide_chunking_strategy(
         )
 
     if _can_fit_in_context(structure, markdown_text):
-        prompt = _build_strategy_prompt(structure, markdown_text, min_tokens, max_tokens)
+        prompt = _build_strategy_prompt(
+            structure,
+            markdown_text,
+            min_tokens,
+            max_tokens,
+        )
         response = _call_ollama_strategy(prompt, model=model, base_url=base_url)
         if not response:
             return None

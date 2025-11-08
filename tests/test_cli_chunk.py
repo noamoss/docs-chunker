@@ -98,7 +98,11 @@ def test_cli_convert_with_llm_strategy(monkeypatch, tmp_path):
 
     def fake_chunk_strategy(markdown_text, *args, **kwargs):
         called["invoked"] = True
-        strategy = types.SimpleNamespace(strategy_type="by_level", level=1, reasoning="test")
+        strategy = types.SimpleNamespace(
+            strategy_type="by_level",
+            level=1,
+            reasoning="test",
+        )
         chunk = Chunk(id=1, title="Title", level=1, content=markdown_text)
         return [chunk], None, strategy
 

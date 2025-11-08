@@ -63,10 +63,14 @@ class Settings(BaseModel):
                 "DOCS_CHUNKER_OLLAMA_BASE_URL", "http://localhost:11434"
             ),
             openai_model=os.getenv("DOCS_CHUNKER_OPENAI_MODEL", "gpt-4o-mini"),
-            llm_validation_enabled=os.getenv("DOCS_CHUNKER_LLM_VALIDATE", "false").lower()
-            in {"1", "true", "yes", "on"},
-            llm_strategy_enabled=os.getenv("DOCS_CHUNKER_LLM_STRATEGY", "false").lower()
-            in {"1", "true", "yes", "on"},
+            llm_validation_enabled=(
+                os.getenv("DOCS_CHUNKER_LLM_VALIDATE", "false").lower()
+                in {"1", "true", "yes", "on"}
+            ),
+            llm_strategy_enabled=(
+                os.getenv("DOCS_CHUNKER_LLM_STRATEGY", "false").lower()
+                in {"1", "true", "yes", "on"}
+            ),
         )
 
 

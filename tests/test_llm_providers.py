@@ -31,11 +31,21 @@ def test_ollama_provider_returns_none_when_strategy_missing(monkeypatch):
         "docs_chunker.llm_providers.decide_chunking_strategy", fake_decide
     )
 
-    result = provider.propose_chunk_operations("# Title", [], min_tokens=100, max_tokens=200)
+    result = provider.propose_chunk_operations(
+        "# Title",
+        [],
+        min_tokens=100,
+        max_tokens=200,
+    )
     assert result is None
 
 
 def test_openai_provider_not_implemented():
     provider = OpenAIProvider(api_key="key", model="gpt")
-    plan = provider.propose_chunk_operations("# Title", [], min_tokens=100, max_tokens=200)
+    plan = provider.propose_chunk_operations(
+        "# Title",
+        [],
+        min_tokens=100,
+        max_tokens=200,
+    )
     assert plan is None

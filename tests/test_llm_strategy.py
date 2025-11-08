@@ -4,8 +4,7 @@ import types
 
 import pytest
 
-import docs_chunker.llm as llm_mod
-
+from docs_chunker import llm as llm_mod
 from docs_chunker.llm_strategy import (
     ChunkingStrategy,
     _build_strategy_prompt,
@@ -20,8 +19,22 @@ from docs_chunker.structure import DocumentStructure, HeadingInfo
 @pytest.fixture
 def sample_structure() -> DocumentStructure:
     headings = [
-        HeadingInfo(level=1, title="Title", line_idx=0, token_count=10, section_start=0, section_end=3),
-        HeadingInfo(level=2, title="Section", line_idx=3, token_count=5, section_start=3, section_end=5),
+        HeadingInfo(
+            level=1,
+            title="Title",
+            line_idx=0,
+            token_count=10,
+            section_start=0,
+            section_end=3,
+        ),
+        HeadingInfo(
+            level=2,
+            title="Section",
+            line_idx=3,
+            token_count=5,
+            section_start=3,
+            section_end=5,
+        ),
     ]
     return DocumentStructure(
         headings=headings,
@@ -34,7 +47,12 @@ def sample_structure() -> DocumentStructure:
 
 
 def test_build_strategy_prompt_includes_requirements(sample_structure):
-    prompt = _build_strategy_prompt(sample_structure, "# Title\n\n## Section\nContent", 200, 1200)
+    prompt = _build_strategy_prompt(
+        sample_structure,
+        "# Title\n\n## Section\nContent",
+        200,
+        1200,
+    )
     assert "RAG Requirements" in prompt
     assert "Minimum tokens per chunk: 200" in prompt
     assert "Maximum tokens per chunk: 1200" in prompt

@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple
+from typing import Any
 
 from .chunk import Chunk, chunk_by_strategy, estimate_tokens
 from .llm_providers import get_provider
@@ -92,7 +92,7 @@ def chunk_with_llm_strategy(
     provider: str = "local",
     model: str | None = None,
     base_url: str | None = None,
-) -> Tuple[Optional[list[Chunk]], DocumentStructure, Optional[ChunkingStrategy]]:
+) -> tuple[list[Chunk] | None, DocumentStructure, ChunkingStrategy | None]:
     """Attempt to chunk using an LLM-selected strategy.
 
     Returns a tuple of (chunks, structure, strategy). ``chunks`` will be ``None``
