@@ -1,6 +1,8 @@
 import textwrap
 
-from docs_chunker.chunk import chunk_markdown, estimate_tokens
+from docs_chunker.chunk import chunk_by_strategy, chunk_markdown, estimate_tokens
+from docs_chunker.llm_strategy import ChunkingStrategy
+from docs_chunker.structure import extract_structure
 
 SAMPLE_MD = (
     textwrap.dedent(
@@ -226,6 +228,35 @@ def test_chunk_markdown_rtl_paragraph_boundaries():
     assert "פסקה ראשונה" in reconstructed
     assert "פסקה שנייה" in reconstructed
     assert "פסקה שלישית" in reconstructed
+
+
+def test_chunk_by_strategy_level():
+    md = "# Title\n\n## Section 1\nContent\n\n## Section 2\nMore\n"
+    structure = extract_structure(md)
+    strategy = ChunkingStrategy(strategy_type="by_level", level=2)
+
+    chunks = chunk_by_strategy(md, structure, strategy, min_tokens=1, max_tokens=100)
+
+    assert len(chunks) >= 2
+    titles = [c.title for c in chunks]
+    assert "Section 1" in titles
+    assert "Section 2" in titles
+    assert "".join(c.content for c in chunks).strip() == md.strip()
+
+
+def test_chunk_by_strategy_custom_boundaries():
+    md = "Intro\nLine\nMore\n"
+    structure = extract_structure(md)
+    strategy = ChunkingStrategy(
+        strategy_type="custom_boundaries", boundaries=[0, 2]
+    )
+
+    chunks = chunk_by_strategy(md, structure, strategy, min_tokens=1, max_tokens=100)
+
+    assert len(chunks) == 2
+    assert chunks[0].content.strip().startswith("Intro")
+    assert chunks[1].content.strip().startswith("More")
+    assert "".join(c.content for c in chunks).strip() == md.strip()
 
 
 def test_max_depth_protection():

@@ -16,6 +16,7 @@ class Settings(BaseModel):
     ollama_base_url: str = "http://localhost:11434"
     openai_model: str = "gpt-4o-mini"
     llm_validation_enabled: bool = False
+    llm_strategy_enabled: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -63,6 +64,8 @@ class Settings(BaseModel):
             ),
             openai_model=os.getenv("DOCS_CHUNKER_OPENAI_MODEL", "gpt-4o-mini"),
             llm_validation_enabled=os.getenv("DOCS_CHUNKER_LLM_VALIDATE", "false").lower()
+            in {"1", "true", "yes", "on"},
+            llm_strategy_enabled=os.getenv("DOCS_CHUNKER_LLM_STRATEGY", "false").lower()
             in {"1", "true", "yes", "on"},
         )
 

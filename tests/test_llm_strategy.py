@@ -4,6 +4,8 @@ import types
 
 import pytest
 
+import docs_chunker.llm as llm_mod
+
 from docs_chunker.llm_strategy import (
     ChunkingStrategy,
     _build_strategy_prompt,
@@ -110,3 +112,50 @@ def test_decide_chunking_strategy_returns_none_when_provider_unknown(sample_stru
         provider="openai",
     )
     assert result is None
+
+
+def test_chunk_with_llm_strategy_success(monkeypatch):
+    md = "# Title\n\n## Section\nContent\n"
+
+    def fake_decide(markdown_text, structure, *args, **kwargs):
+        return ChunkingStrategy(strategy_type="by_level", level=2)
+
+    monkeypatch.setattr("docs_chunker.llm.decide_chunking_strategy", fake_decide)
+
+    chunks, structure, strategy = llm_mod.chunk_with_llm_strategy(
+        md,
+        1,
+        100,
+        provider="local",
+        model="test",
+        base_url="http://example",
+    )
+
+    assert structure.has_structure is True
+    assert strategy is not None
+    assert chunks is not None
+    assert "Section" in [c.title for c in chunks]
+
+
+def test_chunk_with_llm_strategy_no_strategy(monkeypatch):
+    md = "Plain text with no headings."
+
+    def fake_decide_none(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(
+        "docs_chunker.llm.decide_chunking_strategy", fake_decide_none
+    )
+
+    chunks, structure, strategy = llm_mod.chunk_with_llm_strategy(
+        md,
+        1,
+        100,
+        provider="local",
+        model="test",
+        base_url="http://example",
+    )
+
+    assert structure.has_structure is False or not structure.headings
+    assert strategy is None
+    assert chunks is None

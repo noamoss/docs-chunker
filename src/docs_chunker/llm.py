@@ -1,7 +1,9 @@
-from typing import Any
+from typing import Any, Optional, Tuple
 
-from .chunk import Chunk, estimate_tokens
+from .chunk import Chunk, chunk_by_strategy, estimate_tokens
 from .llm_providers import get_provider
+from .llm_strategy import ChunkingStrategy, decide_chunking_strategy
+from .structure import DocumentStructure, extract_structure
 
 
 def _serialize_chunks(chunks: list[Chunk]) -> list[dict[str, Any]]:
@@ -80,6 +82,56 @@ def _llm_propose_boundaries(
         )
     except Exception:
         return None
+
+
+def chunk_with_llm_strategy(
+    markdown_text: str,
+    min_tokens: int,
+    max_tokens: int,
+    *,
+    provider: str = "local",
+    model: str | None = None,
+    base_url: str | None = None,
+) -> Tuple[Optional[list[Chunk]], DocumentStructure, Optional[ChunkingStrategy]]:
+    """Attempt to chunk using an LLM-selected strategy.
+
+    Returns a tuple of (chunks, structure, strategy). ``chunks`` will be ``None``
+    when no strategy is available or when the chosen strategy cannot be
+    applied, allowing callers to fall back to heuristic chunking.
+    """
+
+    structure = extract_structure(markdown_text)
+    effective_model = model
+    effective_base_url = base_url
+    if provider == "local":
+        effective_model = effective_model or "llama3.1:8b"
+        effective_base_url = effective_base_url or "http://localhost:11434"
+
+    strategy = decide_chunking_strategy(
+        markdown_text,
+        structure,
+        min_tokens,
+        max_tokens,
+        provider=provider,
+        model=effective_model or "",
+        base_url=effective_base_url or "",
+    )
+
+    if strategy is None:
+        return None, structure, None
+
+    try:
+        chunks = chunk_by_strategy(
+            markdown_text,
+            structure,
+            strategy,
+            min_tokens=min_tokens,
+            max_tokens=max_tokens,
+        )
+    except Exception:
+        return None, structure, strategy
+
+    return chunks, structure, strategy
 
 
 def validate_and_adjust_chunks(

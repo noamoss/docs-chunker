@@ -20,6 +20,11 @@ def convert(
     dry_run: bool = typer.Option(False, help="Do not write chunk files; only report"),
     min_tokens: int = typer.Option(200, help="Minimum tokens per chunk (heuristic)"),
     max_tokens: int = typer.Option(1200, help="Maximum tokens per chunk (heuristic)"),
+    llm_strategy: bool | None = typer.Option(
+        None,
+        "--llm-strategy/--no-llm-strategy",
+        help="Use an LLM to select a chunking strategy before chunking.",
+    ),
     llm_validate: bool | None = typer.Option(
         None,
         "--llm-validate/--no-llm-validate",
@@ -61,6 +66,9 @@ def convert(
         raise typer.Exit(code=1)
 
     # Resolve LLM configuration overrides
+    effective_llm_strategy = (
+        settings.llm_strategy_enabled if llm_strategy is None else llm_strategy
+    )
     effective_llm_validate = (
         settings.llm_validation_enabled if llm_validate is None else llm_validate
     )
@@ -124,14 +132,65 @@ def convert(
                 print(f"[red]Error:[/red] Failed to write {full_md_path}: {e}")
                 continue
 
-            # Chunk markdown
-            try:
-                chunks = chunk_markdown(
-                    md_text, min_tokens=min_tokens, max_tokens=max_tokens
-                )
-            except ValueError as e:
-                print(f"[red]Error:[/red] Chunking failed for {target}: {e}")
-                continue
+            chunks = None
+            strategy_info = None
+
+            if effective_llm_strategy:
+                try:
+                    strategy_chunks, _, strategy_info = llm.chunk_with_llm_strategy(
+                        md_text,
+                        min_tokens,
+                        max_tokens,
+                        provider=provider_value,
+                        model=model_value,
+                        base_url=base_url_value,
+                    )
+                except Exception as e:
+                    print(
+                        "[yellow]Warning:[/yellow] LLM strategy selection failed; "
+                        f"falling back to heuristics: {e}"
+                    )
+                    strategy_chunks = None
+                if strategy_chunks:
+                    chunks = strategy_chunks
+                    strategy_label = ""
+                    if strategy_info:
+                        if (
+                            strategy_info.strategy_type == "by_level"
+                            and strategy_info.level is not None
+                        ):
+                            strategy_label = f"level {strategy_info.level} headings"
+                        elif (
+                            strategy_info.strategy_type == "custom_boundaries"
+                            and strategy_info.boundaries is not None
+                        ):
+                            strategy_label = (
+                                f"custom boundaries ({len(strategy_info.boundaries)} markers)"
+                            )
+                        if strategy_info.reasoning:
+                            strategy_label = (
+                                f"{strategy_label} – {strategy_info.reasoning}"
+                                if strategy_label
+                                else strategy_info.reasoning
+                            )
+                    print(
+                        "[cyan]LLM strategy:[/cyan] applied"
+                        + (f" {strategy_label}" if strategy_label else "")
+                    )
+                elif strategy_info is not None:
+                    print(
+                        "[yellow]Warning:[/yellow] LLM provided a strategy that could "
+                        "not be applied; using heuristic chunking"
+                    )
+
+            if chunks is None:
+                try:
+                    chunks = chunk_markdown(
+                        md_text, min_tokens=min_tokens, max_tokens=max_tokens
+                    )
+                except ValueError as e:
+                    print(f"[red]Error:[/red] Chunking failed for {target}: {e}")
+                    continue
 
             if effective_llm_validate:
                 try:
