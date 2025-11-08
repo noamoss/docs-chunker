@@ -474,7 +474,48 @@ def chunk_by_strategy(
     min_tokens: int,
     max_tokens: int,
 ) -> list[Chunk]:
-    """Chunk markdown text according to an LLM-proposed strategy."""
+    """Apply LLM-determined chunking strategy to create chunks.
+
+    This function applies the strategy returned by decide_chunking_strategy()
+    to split the document into chunks. Unlike heuristic chunking, this does
+    not validate token counts during strategy application, trusting the LLM's
+    decision. However, chunks are still normalized (merged/split) to ensure
+    they meet min_tokens and max_tokens constraints.
+
+    Args:
+        markdown_text: Full document text in Markdown format
+        structure: DocumentStructure object containing heading hierarchy
+        strategy: ChunkingStrategy object from LLM analysis
+        min_tokens: Minimum tokens per chunk (used for normalization)
+        max_tokens: Maximum tokens per chunk (used for normalization)
+
+    Returns:
+        List of Chunk objects with id, title, level, and content. Chunks are
+        guaranteed to preserve all document content and meet token constraints
+        after normalization.
+
+    Raises:
+        ValueError: If strategy type is unknown or strategy is incomplete
+            (e.g., by_level strategy without level, custom_boundaries without
+            boundaries)
+
+    Example:
+        >>> from docs_chunker.structure import extract_structure
+        >>> from docs_chunker.llm_strategy import ChunkingStrategy
+        >>> structure = extract_structure(markdown_text)
+        >>> strategy = ChunkingStrategy(strategy_type="by_level", level=2)
+        >>> chunks = chunk_by_strategy(
+        ...     markdown_text,
+        ...     structure,
+        ...     strategy,
+        ...     min_tokens=200,
+        ...     max_tokens=1200
+        ... )
+        >>> len(chunks)
+        5
+        >>> chunks[0].title
+        'Section 1'
+    """
 
     if strategy.strategy_type == "by_level" and strategy.level is not None:
         return _chunk_by_level(

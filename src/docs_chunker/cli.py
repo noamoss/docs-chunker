@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import typer
@@ -9,6 +10,8 @@ from .config import settings
 from .convert import convert_docx_to_markdown
 from .io import doc_name_from_path, output_paths_for, write_text
 from .writer import save_chunks
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(help="Docs Chunker CLI")
 
@@ -137,6 +140,9 @@ def convert(
 
             if effective_llm_strategy:
                 try:
+                    logger.debug(
+                        f"Attempting LLM strategy selection with provider '{provider_value}'"
+                    )
                     strategy_chunks, _, strategy_info = llm.chunk_with_llm_strategy(
                         md_text,
                         min_tokens,
@@ -146,6 +152,10 @@ def convert(
                         base_url=base_url_value,
                     )
                 except Exception as e:
+                    logger.warning(
+                        f"LLM strategy selection failed for {target}: {e}",
+                        exc_info=True,
+                    )
                     print(
                         "[yellow]Warning:[/yellow] LLM strategy selection failed; "
                         f"falling back to heuristics: {e}"
@@ -195,6 +205,9 @@ def convert(
 
             if effective_llm_validate:
                 try:
+                    logger.debug(
+                        f"Attempting LLM validation with provider '{provider_value}'"
+                    )
                     adjusted_chunks = llm.validate_and_adjust_chunks(
                         md_text,
                         chunks,
@@ -212,6 +225,10 @@ def convert(
                         f"'{provider_value}'"
                     )
                 except Exception as e:
+                    logger.warning(
+                        f"LLM validation failed for {target}: {e}",
+                        exc_info=True,
+                    )
                     print(
                         "[yellow]Warning:[/yellow] LLM validation failed, "
                         f"using heuristic chunks: {e}"

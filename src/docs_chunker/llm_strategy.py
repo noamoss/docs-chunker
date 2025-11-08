@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass
 from typing import Literal
 
 from .chunk import estimate_tokens
 from .structure import DocumentStructure, get_heading_hierarchy, get_section_preview
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -229,38 +232,78 @@ def decide_chunking_strategy(
     model: str = "llama3.1:8b",
     base_url: str = "http://localhost:11434",
 ) -> ChunkingStrategy | None:
-    """Determine chunking strategy using the requested provider."""
+    """Determine chunking strategy using the requested provider.
 
-    if provider != "local":
-        # Only Ollama provider is implemented in this module.
-        return None
+    This function uses an LLM to analyze document structure and decide the optimal
+    chunking strategy. The LLM considers document hierarchy, section sizes, and
+    RAG requirements to determine whether to chunk by heading level or use custom
+    boundaries.
 
-    if not structure.has_structure and not structure.headings:
-        structure = DocumentStructure(
-            headings=[],
-            total_tokens=structure.total_tokens,
-            total_lines=structure.total_lines,
-            min_level=0,
-            max_level=0,
-            has_structure=False,
-        )
+    Args:
+        markdown_text: Full document text in Markdown format
+        structure: DocumentStructure object containing heading hierarchy and metadata
+        min_tokens: Minimum tokens per chunk (RAG requirement)
+        max_tokens: Maximum tokens per chunk (RAG requirement)
+        provider: LLM provider to use ("local" for Ollama, "openai" for OpenAI)
+        model: Model identifier for the chosen provider
+        base_url: Base URL for Ollama API (only used with "local" provider)
 
-    if _can_fit_in_context(structure, markdown_text):
-        prompt = _build_strategy_prompt(
+    Returns:
+        ChunkingStrategy object if successful, None if LLM unavailable or error occurs.
+        None is returned gracefully to allow fallback to heuristic chunking.
+
+    Example:
+        >>> structure = extract_structure(markdown_text)
+        >>> strategy = decide_chunking_strategy(
+        ...     markdown_text,
+        ...     structure,
+        ...     min_tokens=200,
+        ...     max_tokens=1200,
+        ...     provider="local",
+        ...     model="llama3.1:8b"
+        ... )
+        >>> if strategy:
+        ...     print(f"Strategy: {strategy.strategy_type}, Level: {strategy.level}")
+    """
+    try:
+        if provider != "local":
+            # Only Ollama provider is implemented in this module.
+            logger.debug(f"Provider '{provider}' not yet implemented, returning None")
+            return None
+
+        if not structure.has_structure and not structure.headings:
+            structure = DocumentStructure(
+                headings=[],
+                total_tokens=structure.total_tokens,
+                total_lines=structure.total_lines,
+                min_level=0,
+                max_level=0,
+                has_structure=False,
+            )
+
+        if _can_fit_in_context(structure, markdown_text):
+            prompt = _build_strategy_prompt(
+                structure,
+                markdown_text,
+                min_tokens,
+                max_tokens,
+            )
+            response = _call_ollama_strategy(prompt, model=model, base_url=base_url)
+            if not response:
+                logger.debug("No response from Ollama API")
+                return None
+            return _parse_strategy_response(response)
+
+        return _decide_strategy_for_large_document(
             structure,
-            markdown_text,
             min_tokens,
             max_tokens,
+            model=model,
+            base_url=base_url,
         )
-        response = _call_ollama_strategy(prompt, model=model, base_url=base_url)
-        if not response:
-            return None
-        return _parse_strategy_response(response)
-
-    return _decide_strategy_for_large_document(
-        structure,
-        min_tokens,
-        max_tokens,
-        model=model,
-        base_url=base_url,
-    )
+    except Exception as e:
+        logger.warning(
+            f"LLM strategy decision failed: {e}",
+            exc_info=True,
+        )
+        return None
