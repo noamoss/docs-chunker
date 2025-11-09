@@ -145,7 +145,6 @@ python -m docs_chunker.cli documents/ --llm-strategy
 # Process a single file with Hebrew/non-ASCII filename (use quotes)
 python -m docs_chunker.cli "documents/תקנון תשפו- טיוטה.docx" --llm-strategy --llm-provider local
 ```
-
 **Use OpenAI provider:**
 ```bash
 python -m docs_chunker.cli documents/ --llm-provider openai --llm-model gpt-4o-mini
