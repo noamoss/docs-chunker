@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from .chunk import HEADING_RE, estimate_tokens
@@ -34,14 +35,33 @@ class DocumentStructure:
 def extract_structure(markdown_text: str) -> DocumentStructure:
     """Extract heading hierarchy and metadata from Markdown text."""
 
+    # Regex patterns for code block delimiters
+    CODE_BLOCK_OPEN_RE = re.compile(r"^```[a-zA-Z0-9_-]*$")
+    CODE_BLOCK_CLOSE_RE = re.compile(r"^```\s*$")
+
     lines = markdown_text.splitlines(keepends=True)
     headings_raw: list[tuple[int, int, str]] = []
+    in_code_block = False
+
     for idx, line in enumerate(lines):
-        match = HEADING_RE.match(line)
-        if match:
-            level = len(match.group(1))
-            title = match.group(2).strip()
-            headings_raw.append((idx, level, title))
+        # Strip line ending for delimiter detection, but keep original for heading matching
+        line_stripped = line.rstrip("\r\n")
+
+        # Check if this line is a code block delimiter
+        if CODE_BLOCK_OPEN_RE.match(line_stripped):
+            in_code_block = True
+            continue
+        elif CODE_BLOCK_CLOSE_RE.match(line_stripped):
+            in_code_block = False
+            continue
+
+        # Only check for headings when not inside a code block
+        if not in_code_block:
+            match = HEADING_RE.match(line)
+            if match:
+                level = len(match.group(1))
+                title = match.group(2).strip()
+                headings_raw.append((idx, level, title))
 
     headings: list[HeadingInfo] = []
     total_lines = len(lines)
