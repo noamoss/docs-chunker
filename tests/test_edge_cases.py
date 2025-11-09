@@ -6,17 +6,17 @@ This test suite covers edge cases in document structure to ensure:
 3. Graceful handling of malformed/invalid inputs
 """
 
+import pytest
+
 from docs_chunker.chunk import (
     Chunk,
+    _split_oversized_chunk,
     chunk_by_strategy,
     chunk_markdown,
     estimate_tokens,
-    _split_oversized_chunk,
 )
 from docs_chunker.llm_strategy import ChunkingStrategy
 from docs_chunker.structure import extract_structure
-
-import pytest
 
 
 def verify_content_preservation(original: str, chunks: list[Chunk]) -> None:
@@ -303,12 +303,7 @@ def test_mixed_content_types_lists():
 
 def test_mixed_content_types_blockquotes():
     """Test documents with blockquotes."""
-    content = (
-        "# Title\n"
-        "> This is a quote.\n"
-        "> Multiple lines.\n"
-        "More content."
-    )
+    content = "# Title\n" "> This is a quote.\n" "> Multiple lines.\n" "More content."
     chunks = chunk_markdown(content, min_tokens=1, max_tokens=100)
     verify_content_preservation(content, chunks)
     all_content = "".join(c.content for c in chunks)
@@ -453,12 +448,7 @@ def test_code_blocks_with_hash_comments():
 
 def test_horizontal_rules():
     """Test documents with horizontal rules."""
-    content = (
-        "# Title\n"
-        "Content before.\n"
-        "---\n"
-        "Content after."
-    )
+    content = "# Title\n" "Content before.\n" "---\n" "Content after."
     chunks = chunk_markdown(content, min_tokens=1, max_tokens=100)
     verify_content_preservation(content, chunks)
     all_content = "".join(c.content for c in chunks)
@@ -468,10 +458,7 @@ def test_horizontal_rules():
 def test_html_in_markdown():
     """Test HTML elements in markdown."""
     content = (
-        "# Title\n"
-        "<div>HTML content</div>\n"
-        "<p>Paragraph</p>\n"
-        "More markdown."
+        "# Title\n" "<div>HTML content</div>\n" "<p>Paragraph</p>\n" "More markdown."
     )
     chunks = chunk_markdown(content, min_tokens=1, max_tokens=100)
     verify_content_preservation(content, chunks)
@@ -496,11 +483,7 @@ def test_links_and_images():
 
 def test_inline_code_with_backticks():
     """Test inline code with backticks."""
-    content = (
-        "# Title\n"
-        "Use `code()` function.\n"
-        "Or `another_function()` here."
-    )
+    content = "# Title\n" "Use `code()` function.\n" "Or `another_function()` here."
     chunks = chunk_markdown(content, min_tokens=1, max_tokens=100)
     verify_content_preservation(content, chunks)
     all_content = "".join(c.content for c in chunks)
@@ -560,7 +543,7 @@ def test_custom_boundaries_out_of_range_negative():
     structure = extract_structure(md)
     strategy = ChunkingStrategy(
         strategy_type="custom_boundaries",
-        boundaries=[-1, 2, 5]  # -1 should be ignored, 5 is out of range
+        boundaries=[-1, 2, 5],  # -1 should be ignored, 5 is out of range
     )
     chunks = chunk_by_strategy(md, structure, strategy, min_tokens=1, max_tokens=100)
     verify_content_preservation(md, chunks)
@@ -573,7 +556,7 @@ def test_custom_boundaries_out_of_range_too_large():
     structure = extract_structure(md)
     strategy = ChunkingStrategy(
         strategy_type="custom_boundaries",
-        boundaries=[0, 2, 100]  # 100 is out of range
+        boundaries=[0, 2, 100],  # 100 is out of range
     )
     chunks = chunk_by_strategy(md, structure, strategy, min_tokens=1, max_tokens=100)
     verify_content_preservation(md, chunks)
@@ -586,7 +569,7 @@ def test_custom_boundaries_duplicates():
     structure = extract_structure(md)
     strategy = ChunkingStrategy(
         strategy_type="custom_boundaries",
-        boundaries=[0, 2, 2, 4]  # Duplicate 2
+        boundaries=[0, 2, 2, 4],  # Duplicate 2
     )
     chunks = chunk_by_strategy(md, structure, strategy, min_tokens=1, max_tokens=100)
     verify_content_preservation(md, chunks)
@@ -599,7 +582,7 @@ def test_custom_boundaries_unsorted():
     structure = extract_structure(md)
     strategy = ChunkingStrategy(
         strategy_type="custom_boundaries",
-        boundaries=[3, 1, 0, 4]  # Unsorted
+        boundaries=[3, 1, 0, 4],  # Unsorted
     )
     chunks = chunk_by_strategy(md, structure, strategy, min_tokens=1, max_tokens=100)
     verify_content_preservation(md, chunks)
@@ -612,7 +595,7 @@ def test_custom_boundaries_empty_list():
     structure = extract_structure(md)
     strategy = ChunkingStrategy(
         strategy_type="custom_boundaries",
-        boundaries=[]  # Empty
+        boundaries=[],  # Empty
     )
     with pytest.raises(ValueError, match="Unsupported or incomplete"):
         chunk_by_strategy(md, structure, strategy, min_tokens=1, max_tokens=100)
@@ -624,7 +607,7 @@ def test_custom_boundaries_adjacent():
     structure = extract_structure(md)
     strategy = ChunkingStrategy(
         strategy_type="custom_boundaries",
-        boundaries=[0, 1, 2, 3]  # Adjacent boundaries
+        boundaries=[0, 1, 2, 3],  # Adjacent boundaries
     )
     chunks = chunk_by_strategy(md, structure, strategy, min_tokens=1, max_tokens=100)
     verify_content_preservation(md, chunks)
@@ -798,15 +781,10 @@ def test_headings_with_only_hashes():
 def test_nested_lists_preserved():
     """Test that nested lists are preserved correctly."""
     content = (
-        "# Title\n"
-        "- Item 1\n"
-        "  - Nested 1\n"
-        "    - Deep nested\n"
-        "- Item 2\n"
+        "# Title\n" "- Item 1\n" "  - Nested 1\n" "    - Deep nested\n" "- Item 2\n"
     )
     chunks = chunk_markdown(content, min_tokens=1, max_tokens=100)
     verify_content_preservation(content, chunks)
     all_content = "".join(c.content for c in chunks)
     assert "  - Nested 1" in all_content
     assert "    - Deep nested" in all_content
-

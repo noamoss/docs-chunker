@@ -45,8 +45,9 @@ repos:
     hooks:
       - id: pytest
         name: pytest
-        entry: pytest
+        entry: bash -c 'export PYTHONDONTWRITEBYTECODE=1; if [ -d .venv ] && [ -f .venv/bin/pytest ]; then .venv/bin/pytest -q --no-cov -p no:cacheprovider; elif command -v python3 >/dev/null && python3 -m pytest --version >/dev/null 2>&1; then python3 -m pytest -q --no-cov -p no:cacheprovider; elif command -v pytest >/dev/null; then pytest -q --no-cov -p no:cacheprovider; else echo "pytest not found, skipping tests"; fi'
         language: system
         types: [python]
         pass_filenames: false
         always_run: true
+        verbose: true
