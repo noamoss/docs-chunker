@@ -109,7 +109,7 @@ pip install "markitdown[docx]"
 
 ### CLI
 
-**Basic usage (LLM strategy enabled by default):**
+**Basic usage (LLM strategy disabled by default):**
 ```bash
 # Convert and chunk a single DOCX file
 python -m docs_chunker.cli documents/example.docx
@@ -118,9 +118,9 @@ python -m docs_chunker.cli documents/example.docx
 python -m docs_chunker.cli documents/
 ```
 
-**Disable LLM strategy (use heuristic chunking):**
+**Enable LLM strategy:**
 ```bash
-python -m docs_chunker.cli documents/ --no-llm-strategy
+python -m docs_chunker.cli documents/ --llm-strategy
 ```
 
 **Use OpenAI provider:**

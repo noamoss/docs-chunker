@@ -115,7 +115,7 @@ def _can_fit_in_context(
 
     instructions_budget = 600  # rough allowance for instructions in the prompt
     total_estimate = hierarchy_tokens + preview_tokens + instructions_budget
-    return total_estimate + structure.total_tokens < max_context_tokens
+    return total_estimate < max_context_tokens
 
 
 def _call_ollama_strategy(
@@ -142,7 +142,8 @@ def _call_ollama_strategy(
             options={"temperature": 0.3},
         )
         return str(response.get("response", "")).strip()
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Ollama API call failed: {e}", exc_info=True)
         return None
 
 
@@ -150,14 +151,27 @@ def _extract_json_from_response(response_text: str) -> str | None:
     if not response_text:
         return None
 
-    code_block = re.search(r"```json\s*(\{.*?\})\s*```", response_text, re.DOTALL)
-    if code_block:
-        return code_block.group(1)
+    # Try to find JSON in code blocks with bracket counting for nested structures
+    json_block_match = re.search(r"```(?:json)?\s*(\{)", response_text, re.DOTALL)
+    if json_block_match:
+        start_pos = json_block_match.start(1)
+        # Find the matching closing brace by counting brackets
+        brace_count = 0
+        for i in range(start_pos, len(response_text)):
+            if response_text[i] == "{":
+                brace_count += 1
+            elif response_text[i] == "}":
+                brace_count -= 1
+                if brace_count == 0:
+                    # Found matching closing brace
+                    json_text = response_text[start_pos : i + 1]
+                    # Check if it's followed by closing code block marker
+                    remaining = response_text[i + 1 :].strip()
+                    if remaining.startswith("```") or not remaining.startswith("`"):
+                        return json_text
+                    break
 
-    generic_block = re.search(r"```\s*(\{.*?\})\s*```", response_text, re.DOTALL)
-    if generic_block:
-        return generic_block.group(1)
-
+    # Fallback: find first { and last } (handles nested JSON correctly)
     start = response_text.find("{")
     end = response_text.rfind("}")
     if start != -1 and end != -1 and end > start:

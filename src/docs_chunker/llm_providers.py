@@ -49,7 +49,7 @@ class OllamaProvider:
         )
         if not strategy:
             return None
-        return _strategy_to_plan(strategy, chunks_schema)
+        return _strategy_to_plan(strategy)
 
 
 @dataclass
@@ -71,7 +71,7 @@ class OpenAIProvider:
 
 
 def _strategy_to_plan(
-    strategy: ChunkingStrategy, chunks_schema: list[dict[str, Any]]
+    strategy: ChunkingStrategy,
 ) -> dict[str, Any]:
     """Convert a ``ChunkingStrategy`` into a plan dictionary."""
 

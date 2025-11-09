@@ -141,7 +141,8 @@ def convert(
             if effective_llm_strategy:
                 try:
                     logger.debug(
-                        f"Attempting LLM strategy selection with provider '{provider_value}'"
+                        f"Attempting LLM strategy selection with "
+                        f"provider '{provider_value}'"
                     )
                     strategy_chunks, _, strategy_info = llm.chunk_with_llm_strategy(
                         md_text,

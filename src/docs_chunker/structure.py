@@ -34,7 +34,7 @@ class DocumentStructure:
 def extract_structure(markdown_text: str) -> DocumentStructure:
     """Extract heading hierarchy and metadata from Markdown text."""
 
-    lines = markdown_text.splitlines()
+    lines = markdown_text.splitlines(keepends=True)
     headings_raw: list[tuple[int, int, str]] = []
     for idx, line in enumerate(lines):
         match = HEADING_RE.match(line)
@@ -66,7 +66,7 @@ def extract_structure(markdown_text: str) -> DocumentStructure:
         section_start = line_idx
         section_end = next_boundary
         section_lines = lines[section_start:section_end]
-        section_text = "\n".join(section_lines)
+        section_text = "".join(section_lines)
         token_count = estimate_tokens(section_text)
         headings.append(
             HeadingInfo(
@@ -116,12 +116,12 @@ def get_section_preview(
     if max_chars < 0:
         raise ValueError("max_chars must be non-negative")
 
-    lines = markdown_text.splitlines()
+    lines = markdown_text.splitlines(keepends=True)
     start = max(0, heading.section_start)
     end = heading.section_end if heading.section_end >= 0 else len(lines)
     end = min(len(lines), end)
     section_lines = lines[start:end]
-    section_text = "\n".join(section_lines).strip()
+    section_text = "".join(section_lines).strip()
     if max_chars == 0:
         return ""
     if len(section_text) <= max_chars:
