@@ -1,5 +1,13 @@
+from __future__ import annotations
+
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .llm_strategy import ChunkingStrategy
+    from .structure import DocumentStructure
 
 
 @dataclass
@@ -40,13 +48,33 @@ def estimate_tokens(text: str, model: str = "gpt-4") -> int:
 
 
 def _find_headings(lines: list[str]) -> list[tuple[int, int, str]]:
+    # Regex patterns for code block delimiters
+    code_block_open_re = re.compile(r"^```[a-zA-Z0-9_-]*$")
+    code_block_close_re = re.compile(r"^```\s*$")
+
     heads: list[tuple[int, int, str]] = []
+    in_code_block = False
+
     for idx, line in enumerate(lines):
-        m = HEADING_RE.match(line)
-        if m:
-            level = len(m.group(1))
-            title = m.group(2).strip()
-            heads.append((idx, level, title))
+        # Strip line ending for delimiter detection, but keep original
+        # for heading matching
+        line_stripped = line.rstrip("\r\n")
+
+        # Check if this line is a code block delimiter
+        if code_block_open_re.match(line_stripped):
+            in_code_block = True
+            continue
+        elif code_block_close_re.match(line_stripped):
+            in_code_block = False
+            continue
+
+        # Only check for headings when not inside a code block
+        if not in_code_block:
+            m = HEADING_RE.match(line)
+            if m:
+                level = len(m.group(1))
+                title = m.group(2).strip()
+                heads.append((idx, level, title))
     return heads
 
 
@@ -329,6 +357,209 @@ def _split_oversized_chunk(
     return split_chunks if split_chunks else [chunk]
 
 
+def _normalize_chunks(
+    chunks: Sequence[Chunk], min_tokens: int, max_tokens: int
+) -> list[Chunk]:
+    """Merge undersized chunks and split oversized ones.
+
+    This mirrors the logic used by ``chunk_markdown`` so that alternative chunk
+    generation paths (e.g., LLM strategies) can reuse the same token
+    constraints and guarantees around coverage preservation.
+    """
+
+    merged: list[Chunk] = []
+    for ch in chunks:
+        if ch is None:
+            continue
+        if merged and estimate_tokens(merged[-1].content) < min_tokens:
+            prev = merged.pop()
+            combined = Chunk(
+                id=prev.id,
+                title=prev.title or ch.title,
+                level=min(prev.level, ch.level),
+                content=prev.content + ch.content,
+            )
+            merged.append(combined)
+        else:
+            merged.append(ch)
+
+    final: list[Chunk] = []
+    for ch in merged:
+        if estimate_tokens(ch.content) > max_tokens:
+            final.extend(_split_oversized_chunk(ch, max_tokens))
+        else:
+            if not ch.title:
+                ch.title = _extract_title_from_content(ch.content)
+            final.append(ch)
+
+    for i, ch in enumerate(final, start=1):
+        ch.id = i
+
+    return final
+
+
+def _make_chunk_from_range(
+    lines: Sequence[str],
+    structure: DocumentStructure | None,
+    start: int,
+    end: int,
+) -> Chunk | None:
+    if start >= end:
+        return None
+
+    content = "".join(lines[start:end])
+    if not content:
+        return None
+
+    title = ""
+    level = 0
+
+    if structure and structure.headings:
+        heading_lookup = {h.section_start: h for h in structure.headings}
+        heading = heading_lookup.get(start)
+        if heading is None:
+            for candidate in reversed(structure.headings):
+                if candidate.section_start <= start:
+                    heading = candidate
+                    break
+        if heading is not None:
+            title = heading.title
+            level = heading.level
+
+    if not title:
+        title = _extract_title_from_content(content)
+
+    return Chunk(id=0, title=title, level=level, content=content)
+
+
+def _chunk_by_level(
+    markdown_text: str,
+    structure: DocumentStructure,
+    level: int,
+    min_tokens: int,
+    max_tokens: int,
+) -> list[Chunk]:
+    if level < 1 or level > 6:
+        raise ValueError(f"Invalid heading level: {level}")
+
+    lines_keepends = markdown_text.splitlines(keepends=True)
+    total_lines = len(lines_keepends)
+
+    boundaries: set[int] = {0, total_lines}
+    for heading in structure.headings:
+        if heading.level <= level:
+            boundaries.add(heading.line_idx)
+
+    ordered = sorted(boundaries)
+    raw_chunks: list[Chunk] = []
+    for start, end in zip(ordered, ordered[1:]):
+        chunk = _make_chunk_from_range(lines_keepends, structure, start, end)
+        if chunk is not None:
+            raw_chunks.append(chunk)
+
+    return _normalize_chunks(raw_chunks, min_tokens, max_tokens)
+
+
+def _chunk_by_boundaries(
+    markdown_text: str,
+    structure: DocumentStructure | None,
+    boundaries: Sequence[int],
+    min_tokens: int,
+    max_tokens: int,
+) -> list[Chunk]:
+    lines_keepends = markdown_text.splitlines(keepends=True)
+    total_lines = len(lines_keepends)
+
+    valid_boundaries = {
+        b for b in boundaries if isinstance(b, int) and 0 <= b <= total_lines
+    }
+    valid_boundaries.add(0)
+    valid_boundaries.add(total_lines)
+    ordered = sorted(valid_boundaries)
+
+    raw_chunks: list[Chunk] = []
+    for start, end in zip(ordered, ordered[1:]):
+        chunk = _make_chunk_from_range(lines_keepends, structure, start, end)
+        if chunk is not None:
+            raw_chunks.append(chunk)
+
+    return _normalize_chunks(raw_chunks, min_tokens, max_tokens)
+
+
+def chunk_by_strategy(
+    markdown_text: str,
+    structure: DocumentStructure,
+    strategy: ChunkingStrategy,
+    *,
+    min_tokens: int,
+    max_tokens: int,
+) -> list[Chunk]:
+    """Apply LLM-determined chunking strategy to create chunks.
+
+    This function applies the strategy returned by decide_chunking_strategy()
+    to split the document into chunks. Unlike heuristic chunking, this does
+    not validate token counts during strategy application, trusting the LLM's
+    decision. However, chunks are still normalized (merged/split) to ensure
+    they meet min_tokens and max_tokens constraints.
+
+    Args:
+        markdown_text: Full document text in Markdown format
+        structure: DocumentStructure object containing heading hierarchy
+        strategy: ChunkingStrategy object from LLM analysis
+        min_tokens: Minimum tokens per chunk (used for normalization)
+        max_tokens: Maximum tokens per chunk (used for normalization)
+
+    Returns:
+        List of Chunk objects with id, title, level, and content. Chunks are
+        guaranteed to preserve all document content and meet token constraints
+        after normalization.
+
+    Raises:
+        ValueError: If strategy type is unknown or strategy is incomplete
+            (e.g., by_level strategy without level, custom_boundaries without
+            boundaries)
+
+    Example:
+        >>> from docs_chunker.structure import extract_structure
+        >>> from docs_chunker.llm_strategy import ChunkingStrategy
+        >>> structure = extract_structure(markdown_text)
+        >>> strategy = ChunkingStrategy(strategy_type="by_level", level=2)
+        >>> chunks = chunk_by_strategy(
+        ...     markdown_text,
+        ...     structure,
+        ...     strategy,
+        ...     min_tokens=200,
+        ...     max_tokens=1200
+        ... )
+        >>> len(chunks)
+        5
+        >>> chunks[0].title
+        'Section 1'
+    """
+
+    if strategy.strategy_type == "by_level" and strategy.level is not None:
+        return _chunk_by_level(
+            markdown_text,
+            structure,
+            strategy.level,
+            min_tokens,
+            max_tokens,
+        )
+    if (
+        strategy.strategy_type == "custom_boundaries"
+        and strategy.boundaries is not None
+        and strategy.boundaries
+    ):
+        return _chunk_by_boundaries(
+            markdown_text,
+            structure,
+            strategy.boundaries,
+            min_tokens,
+            max_tokens,
+        )
+    raise ValueError("Unsupported or incomplete chunking strategy provided")
+
+
 def chunk_markdown(
     markdown_text: str, min_tokens: int = 200, max_tokens: int = 1200
 ) -> list[Chunk]:
@@ -427,35 +658,4 @@ def chunk_markdown(
             Chunk(id=len(chunks) + 1, title=title, level=level, content=content)
         )
 
-    # Merge undersized adjacent chunks
-    merged: list[Chunk] = []
-    for ch in chunks:
-        if merged and estimate_tokens(merged[-1].content) < min_tokens:
-            prev = merged.pop()
-            combined = Chunk(
-                id=prev.id,
-                title=prev.title or ch.title,
-                level=min(prev.level, ch.level),
-                content=prev.content + ch.content,
-            )
-            merged.append(combined)
-        else:
-            merged.append(ch)
-
-    # Split oversized chunks
-    final: list[Chunk] = []
-    for ch in merged:
-        if estimate_tokens(ch.content) > max_tokens:
-            split = _split_oversized_chunk(ch, max_tokens)
-            final.extend(split)
-        else:
-            # Ensure title is not empty
-            if not ch.title:
-                ch.title = _extract_title_from_content(ch.content)
-            final.append(ch)
-
-    # Reassign IDs
-    for i, ch in enumerate(final, start=1):
-        ch.id = i
-
-    return final
+    return _normalize_chunks(chunks, min_tokens, max_tokens)

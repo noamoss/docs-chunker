@@ -13,6 +13,10 @@ class Settings(BaseModel):
     llm_provider: Literal["local", "openai"] = "local"
     openai_api_key: str | None = None
     local_model: str = "llama3.1:8b"
+    ollama_base_url: str = "http://localhost:11434"
+    openai_model: str = "gpt-4o-mini"
+    llm_validation_enabled: bool = False
+    llm_strategy_enabled: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -55,6 +59,18 @@ class Settings(BaseModel):
             llm_provider=os.getenv("DOCS_CHUNKER_LLM_PROVIDER", "local"),  # type: ignore
             openai_api_key=os.getenv("DOCS_CHUNKER_OPENAI_API_KEY"),
             local_model=os.getenv("DOCS_CHUNKER_LOCAL_MODEL", "llama3.1:8b"),
+            ollama_base_url=os.getenv(
+                "DOCS_CHUNKER_OLLAMA_BASE_URL", "http://localhost:11434"
+            ),
+            openai_model=os.getenv("DOCS_CHUNKER_OPENAI_MODEL", "gpt-4o-mini"),
+            llm_validation_enabled=(
+                os.getenv("DOCS_CHUNKER_LLM_VALIDATE", "false").lower()
+                in {"1", "true", "yes", "on"}
+            ),
+            llm_strategy_enabled=(
+                os.getenv("DOCS_CHUNKER_LLM_STRATEGY", "false").lower()
+                in {"1", "true", "yes", "on"}
+            ),
         )
 
 

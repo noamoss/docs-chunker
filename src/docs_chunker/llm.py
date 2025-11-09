@@ -1,6 +1,9 @@
 from typing import Any
 
-from .chunk import Chunk, estimate_tokens
+from .chunk import Chunk, chunk_by_strategy, estimate_tokens
+from .llm_providers import get_provider
+from .llm_strategy import ChunkingStrategy, decide_chunking_strategy
+from .structure import DocumentStructure, extract_structure
 
 
 def _serialize_chunks(chunks: list[Chunk]) -> list[dict[str, Any]]:
@@ -55,12 +58,80 @@ def _llm_propose_boundaries(
     language_hint: str = "auto",
     provider: str = "local",
     max_tokens: int = 1200,
+    min_tokens: int = 200,
+    model: str | None = None,
+    base_url: str | None = None,
+    api_key: str | None = None,
 ) -> dict[str, Any] | None:
+    provider_impl = get_provider(
+        provider,
+        model=model,
+        base_url=base_url,
+        api_key=api_key,
+    )
+    if provider_impl is None:
+        return None
+
+    try:
+        return provider_impl.propose_chunk_operations(
+            markdown_text,
+            chunks_schema,
+            min_tokens=min_tokens,
+            max_tokens=max_tokens,
+            language_hint=language_hint,
+        )
+    except Exception:
+        return None
+
+
+def chunk_with_llm_strategy(
+    markdown_text: str,
+    min_tokens: int,
+    max_tokens: int,
+    *,
+    provider: str = "local",
+    model: str | None = None,
+    base_url: str | None = None,
+) -> tuple[list[Chunk] | None, DocumentStructure, ChunkingStrategy | None]:
+    """Attempt to chunk using an LLM-selected strategy.
+
+    Returns a tuple of (chunks, structure, strategy). ``chunks`` will be ``None``
+    when no strategy is available or when the chosen strategy cannot be
+    applied, allowing callers to fall back to heuristic chunking.
     """
-    Placeholder for actual LLM call. Returns None when no external model is available.
-    Tests monkeypatch this function to return a plan dict with operations.
-    """
-    return None
+
+    structure = extract_structure(markdown_text)
+    effective_model = model
+    effective_base_url = base_url
+    if provider == "local":
+        effective_model = effective_model or "llama3.1:8b"
+        effective_base_url = effective_base_url or "http://localhost:11434"
+
+    strategy = decide_chunking_strategy(
+        markdown_text,
+        structure,
+        min_tokens,
+        max_tokens,
+        provider=provider,
+        model=effective_model or "",
+        base_url=effective_base_url or "",
+    )
+
+    if strategy is None:
+        return None, structure, None
+
+    try:
+        chunks = chunk_by_strategy(
+            markdown_text,
+            structure,
+            strategy,
+            min_tokens=min_tokens,
+            max_tokens=max_tokens,
+        )
+    except Exception:
+        return None, structure, strategy
+
+    return chunks, structure, strategy
 
 
 def validate_and_adjust_chunks(
@@ -71,6 +142,9 @@ def validate_and_adjust_chunks(
     *,
     language_hint: str = "auto",
     provider: str = "local",
+    model: str | None = None,
+    base_url: str | None = None,
+    api_key: str | None = None,
 ) -> list[Chunk]:
     """
     Ask an LLM to propose merges/splits, then apply them.
@@ -83,6 +157,10 @@ def validate_and_adjust_chunks(
         language_hint=language_hint,
         provider=provider,
         max_tokens=max_tokens,
+        min_tokens=min_tokens,
+        model=model,
+        base_url=base_url,
+        api_key=api_key,
     )
     if not proposal:
         return chunks
