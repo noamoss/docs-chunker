@@ -115,10 +115,33 @@ def test_call_ollama_strategy_success(monkeypatch):
     monkeypatch.delitem(sys.modules, "ollama")
 
 
-def test_call_ollama_strategy_missing_module():
+def test_call_ollama_strategy_missing_module(monkeypatch):
+    # Remove ollama from sys.modules to prevent it from being found
     if "ollama" in sys.modules:
-        del sys.modules["ollama"]
-    assert _call_ollama_strategy("prompt") is None
+        monkeypatch.delitem(sys.modules, "ollama")
+
+    # Patch importlib.import_module directly
+    # Since importlib is imported inside _call_ollama_strategy, we need to
+    # patch the importlib module that's in sys.modules (which both will use)
+    import importlib
+
+    # Save the original function to avoid recursion
+    original_import_module = importlib.import_module
+
+    def patched_import_module(name, package=None):
+        if name == "ollama":
+            raise ModuleNotFoundError(f"No module named '{name}'")
+        return original_import_module(name, package)
+
+    # Patch importlib.import_module on the module in sys.modules
+    # This will affect the module that gets imported inside the function
+    monkeypatch.setattr(importlib, "import_module", patched_import_module)
+
+    # Also ensure sys.modules doesn't have ollama cached
+    monkeypatch.delitem(sys.modules, "ollama", raising=False)
+
+    result = _call_ollama_strategy("prompt")
+    assert result is None, f"Expected None but got: {result}"
 
 
 def test_decide_chunking_strategy_returns_none_when_provider_unknown(sample_structure):

@@ -67,9 +67,16 @@ pip install "markitdown[docx]"
    curl -fsSL https://ollama.com/install.sh | sh
    ```
 
-2. **Start Ollama service:**
+2. **Verify Ollama service is running:**
    ```bash
-   ollama serve
+   # On macOS, Ollama runs as a daemon automatically after installation
+   # Check if service is accessible:
+   curl http://localhost:11434/api/tags
+   # If you see a JSON response (even if empty), the service is running
+
+   # If the service is not running, start it:
+   # On macOS/Linux: ollama serve (or it may start automatically)
+   # On Windows: The Ollama app should be running
    ```
 
 3. **Pull required model:**
@@ -77,14 +84,26 @@ pip install "markitdown[docx]"
    ollama pull llama3.1:8b
    ```
 
-4. **Verify installation:**
+4. **Verify model is available:**
    ```bash
    ollama list
+   # Should show llama3.1:8b in the list
    ```
 
-5. **Use with docs-chunker:**
+5. **Ensure Python ollama package is installed:**
    ```bash
-   python -m docs_chunker.cli documents/ --llm-provider local
+   # The ollama package should be installed with docs-chunker
+   # If not, install it manually:
+   pip install ollama
+   ```
+
+6. **Use with docs-chunker:**
+   ```bash
+   # Basic usage
+   python -m docs_chunker.cli documents/ --llm-strategy --llm-provider local
+
+   # With Hebrew/non-ASCII filenames (use quotes):
+   python -m docs_chunker.cli "documents/תקנון תשפו- טיוטה.docx" --llm-strategy --llm-provider local
    ```
 
 ### Setting Up OpenAI (Cloud Provider)
@@ -120,7 +139,11 @@ python -m docs_chunker.cli documents/
 
 **Enable LLM strategy:**
 ```bash
+# Process all DOCX files in a directory
 python -m docs_chunker.cli documents/ --llm-strategy
+
+# Process a single file with Hebrew/non-ASCII filename (use quotes)
+python -m docs_chunker.cli "documents/תקנון תשפו- טיוטה.docx" --llm-strategy --llm-provider local
 ```
 
 **Use OpenAI provider:**
@@ -280,9 +303,11 @@ The service includes comprehensive error handling:
 ## Troubleshooting
 
 **LLM strategy not working:**
-- Check Ollama is running: `ollama list`
-- Verify model is available: `ollama pull llama3.1:8b`
-- Check OpenAI API key is set: `echo $OPENAI_API_KEY`
+- Check Ollama service is running: `curl http://localhost:11434/api/tags` (should return JSON)
+- Check Ollama is accessible: `ollama list` (should not error)
+- Verify model is available: `ollama pull llama3.1:8b` (if missing)
+- Ensure Python ollama package is installed: `pip install ollama`
+- Check OpenAI API key is set: `echo $OPENAI_API_KEY` (for OpenAI provider)
 - Enable debug logging: `export DOCS_CHUNKER_DEBUG=true`
 
 **Fallback to heuristic chunking:**
