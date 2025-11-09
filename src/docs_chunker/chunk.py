@@ -49,21 +49,22 @@ def estimate_tokens(text: str, model: str = "gpt-4") -> int:
 
 def _find_headings(lines: list[str]) -> list[tuple[int, int, str]]:
     # Regex patterns for code block delimiters
-    CODE_BLOCK_OPEN_RE = re.compile(r"^```[a-zA-Z0-9_-]*$")
-    CODE_BLOCK_CLOSE_RE = re.compile(r"^```\s*$")
+    code_block_open_re = re.compile(r"^```[a-zA-Z0-9_-]*$")
+    code_block_close_re = re.compile(r"^```\s*$")
 
     heads: list[tuple[int, int, str]] = []
     in_code_block = False
 
     for idx, line in enumerate(lines):
-        # Strip line ending for delimiter detection, but keep original for heading matching
+        # Strip line ending for delimiter detection, but keep original
+        # for heading matching
         line_stripped = line.rstrip("\r\n")
 
         # Check if this line is a code block delimiter
-        if CODE_BLOCK_OPEN_RE.match(line_stripped):
+        if code_block_open_re.match(line_stripped):
             in_code_block = True
             continue
-        elif CODE_BLOCK_CLOSE_RE.match(line_stripped):
+        elif code_block_close_re.match(line_stripped):
             in_code_block = False
             continue
 

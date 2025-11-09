@@ -6,8 +6,6 @@ This test suite covers edge cases in document structure to ensure:
 3. Graceful handling of malformed/invalid inputs
 """
 
-import pytest
-
 from docs_chunker.chunk import (
     Chunk,
     chunk_by_strategy,
@@ -17,6 +15,8 @@ from docs_chunker.chunk import (
 )
 from docs_chunker.llm_strategy import ChunkingStrategy
 from docs_chunker.structure import extract_structure
+
+import pytest
 
 
 def verify_content_preservation(original: str, chunks: list[Chunk]) -> None:
@@ -31,7 +31,9 @@ def verify_content_preservation(original: str, chunks: list[Chunk]) -> None:
     )
 
 
-def verify_token_constraints(chunks: list[Chunk], min_tokens: int, max_tokens: int) -> None:
+def verify_token_constraints(
+    chunks: list[Chunk], min_tokens: int, max_tokens: int
+) -> None:
     """Helper to verify token constraints are respected."""
     for chunk in chunks:
         tokens = estimate_tokens(chunk.content)
@@ -187,7 +189,8 @@ def test_headings_with_markdown_syntax():
     structure = extract_structure(content)
     assert len(structure.headings) == 1
     # Markdown syntax should be preserved in title
-    assert "**Bold**" in structure.headings[0].title or "Bold" in structure.headings[0].title
+    title = structure.headings[0].title
+    assert "**Bold**" in title or "Bold" in title
 
 
 def test_single_heading():
@@ -423,10 +426,10 @@ def test_tabs_vs_spaces():
 
 def test_code_blocks_with_hash_comments():
     """Test code blocks with # that look like headings.
-    
+
     Expected: Lines starting with # inside code blocks should NOT be
     recognized as headings. Only the actual heading should be detected.
-    
+
     See TASK_CODE_BLOCK_HEADING_FILTER.md for implementation details.
     """
     content = (
@@ -708,7 +711,9 @@ def test_adjacent_boundaries_no_content():
     """Test adjacent boundaries that create empty chunks."""
     md = "Line 1\nLine 2\nLine 3\n"
     structure = extract_structure(md)
-    strategy = ChunkingStrategy(strategy_type="custom_boundaries", boundaries=[0, 1, 1, 2])
+    strategy = ChunkingStrategy(
+        strategy_type="custom_boundaries", boundaries=[0, 1, 1, 2]
+    )
     chunks = chunk_by_strategy(md, structure, strategy, min_tokens=1, max_tokens=100)
     verify_content_preservation(md, chunks)
     # Empty chunks should be filtered by _make_chunk_from_range
@@ -721,10 +726,10 @@ def test_adjacent_boundaries_no_content():
 
 def test_headings_in_code_blocks_not_recognized():
     """Test that # in code blocks are not recognized as headings.
-    
+
     Expected: Lines starting with # inside code blocks should NOT be
     recognized as headings. Only the actual heading should be detected.
-    
+
     See TASK_CODE_BLOCK_HEADING_FILTER.md for implementation details.
     """
     content = (
